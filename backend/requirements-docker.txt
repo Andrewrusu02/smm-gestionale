@@ -1,0 +1,14 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+SQLAlchemy>=2.0
+python-dotenv>=1.0
+bcrypt>=4.1
+PyJWT>=2.8
+cryptography>=42
+requests>=2.31
+google-auth>=2.29
+google-auth-httplib2>=0.2
+google-api-python-client>=2.120
+pydantic>=2.6
+reportlab>=4.0
+tzdata

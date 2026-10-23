@@ -1,0 +1,40 @@
+services:
+  backend:
+    build: ./backend
+    container_name: smm-gestionale-backend
+    restart: unless-stopped
+    env_file: sd.env
+    environment:
+      DATABASE_URL: sqlite:////data/smm.db
+      CORS_ORIGINS: ${APP_PUBLIC_URL}
+      PUBLIC_BACKEND_URL: ${APP_PUBLIC_URL}
+      FRONTEND_URL: ${APP_PUBLIC_URL}
+    volumes:
+      - smm_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Empty means same-origin. Nginx proxies /api to the backend container.
+        REACT_APP_BACKEND_URL: ${REACT_APP_BACKEND_URL:-}
+    container_name: smm-gestionale-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8085}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  smm_data:
