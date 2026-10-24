@@ -45,8 +45,9 @@ function MeetingPill({ m, onClick, full }) {
 
 function TaskPill({ task, full }) {
   const value = task.start_date || task.due_date;
+  const title = task.title || task.name || task.category_service || "Attività";
   return <div className="flex w-full items-center gap-1 truncate rounded-md border border-amber-200 bg-amber-50 px-1.5 py-1 text-[11px] text-amber-800" data-testid={`calendar-task-${task.id}`}>
-    <span className="font-num shrink-0">{value?.slice(5)}</span><span className="truncate">{full ? `${task.client_name || "Task"} · ${task.title}` : task.title}</span>
+    <span className="font-num shrink-0">{value?.slice(5)}</span><span className="truncate">{full ? `${task.client_name ? `${task.client_name} · ` : ""}${title}` : title}</span>
   </div>;
 }
 

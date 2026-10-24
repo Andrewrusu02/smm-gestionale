@@ -18,10 +18,13 @@ function PaidDialog({ payment, onClose, onDone }) {
     try {
       await api.put(`/payments/${payment.id}`, { status: "saldato", paid_date: date || null });
       toast.success("Pagamento segnato come saldato");
-      onDone();
+      await onDone();
       onClose();
     } catch (e) {
-      toast.error(errMsg(e));
+      const detail = e?.response?.data?.detail || e?.message || "Errore durante l'aggiornamento del pagamento";
+      const message = typeof detail === "string" ? detail : JSON.stringify(detail);
+      alert(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -109,6 +112,7 @@ export default function Payments() {
   }, [data]);
   const pending = (data || []).filter((p) => p.status !== "saldato");
   const paid = (data || []).filter((p) => p.status === "saldato");
+  const handlePayment = (payment) => setPaying(payment);
 
   const act = async (fn, ok) => {
     try { await fn(); toast.success(ok); reload(); } catch (e) { toast.error(errMsg(e)); }
@@ -147,10 +151,10 @@ export default function Payments() {
       </div>
       {!data?.length ? <EmptyState icon={Wallet} title="Nessun pagamento" text="Le rate degli abbonamenti vengono create automaticamente ogni mese." testId="payments-empty" /> : (
         <>
-        <PaymentSection title="Da saldare" payments={pending} paying={setPaying} act={act} />
+        <PaymentSection title="Da saldare" payments={pending} onMarkPaid={handlePayment} act={act} />
         <details className="mt-6 rounded-2xl border border-slate-200/80 bg-white shadow-sm">
           <summary className="cursor-pointer px-5 py-4 text-sm font-bold text-slate-700">Pagamenti Effettuati ({paid.length})</summary>
-          <div className="border-t border-slate-100 p-4"><PaymentTable data={paid} setPaying={setPaying} act={act} /></div>
+          <div className="border-t border-slate-100 p-4"><PaymentTable data={paid} onMarkPaid={handlePayment} act={act} /></div>
         </details>
         </>
       )}
@@ -160,14 +164,14 @@ export default function Payments() {
   );
 }
 
-function PaymentSection({ title, payments, setPaying, act }) {
+function PaymentSection({ title, payments, onMarkPaid, act }) {
   return <section>
     <h2 className="mb-3 text-lg font-bold text-slate-800">{title}</h2>
-    {!payments.length ? <p className="rounded-xl border border-dashed p-5 text-sm text-slate-500">Nessun pagamento da saldare.</p> : <PaymentTable data={payments} setPaying={setPaying} act={act} />}
+    {!payments.length ? <p className="rounded-xl border border-dashed p-5 text-sm text-slate-500">Nessun pagamento da saldare.</p> : <PaymentTable data={payments} onMarkPaid={onMarkPaid} act={act} />}
   </section>;
 }
 
-function PaymentTable({ data, setPaying, act }) {
+function PaymentTable({ data, onMarkPaid, act }) {
   return (
         <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm">
           <Table data-testid="payments-table">
@@ -188,7 +192,7 @@ function PaymentTable({ data, setPaying, act }) {
                   <TableCell className="font-num text-xs">{fmtDate(p.paid_date)}</TableCell>
                   <TableCell className="whitespace-nowrap text-right">
                     {p.status !== "saldato" ? (
-                      <Button size="sm" variant="outline" className="h-8 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => setPaying(p)} data-testid={`mark-paid-${p.id}`}>
+                      <Button size="sm" variant="outline" className="h-8 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => onMarkPaid(p)} data-testid={`mark-paid-${p.id}`}>
                         <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />Pagamento effettuato
                       </Button>
                     ) : (

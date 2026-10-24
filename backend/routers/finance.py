@@ -154,6 +154,7 @@ def create_payment(body: PaymentIn, _: User = Depends(require_admin), db: Sessio
 
 
 @router.put("/payments/{pid}")
+@router.patch("/payments/{pid}")
 def update_payment(pid: int, body: PaymentUpdate, _: User = Depends(require_admin), db: Session = Depends(get_db)):
     p = _payment(db, pid)
     client_id = body.client_id if body.client_id is not None else p.client_id
