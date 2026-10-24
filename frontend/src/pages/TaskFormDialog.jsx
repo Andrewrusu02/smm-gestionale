@@ -43,7 +43,7 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
     e.preventDefault();
     setSaving(true);
     const body = {
-      title: form.title, description: form.description || null, client_id: Number(form.client_id),
+      title: form.title, description: form.description || null, client_id: form.client_id ? Number(form.client_id) : null,
       category_service: form.category_service,
       status: form.status, priority: form.priority, assignee_id: form.assignee_id ? Number(form.assignee_id) : null,
       start_date: form.start_date || null, due_date: form.due_date || null,
@@ -81,7 +81,7 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
           <Field label="Titolo *"><Input required value={form.title} onChange={set("title")} data-testid="task-title-input" /></Field>
           <Field label="Descrizione"><Textarea value={form.description} onChange={set("description")} data-testid="task-description-input" /></Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Cliente *">
+            <Field label="Cliente">
               <NativeSelect value={form.client_id} onChange={set("client_id")} data-testid="task-client-select">
                 <option value="">Seleziona cliente</option>
                 {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

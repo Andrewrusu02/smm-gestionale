@@ -144,7 +144,7 @@ export default function Team() {
   const { data, loading, reload } = useApi("/users");
   const { data: clients } = useApi("/clients/basic");
   const [selectedUser, setSelectedUser] = useState("");
-  const { data: logs, reload: reloadLogs, setData } = useApi(`/work-logs${selectedUser ? `?user_id=${selectedUser}` : ""}`);
+  const { data: logs, reload: reloadLogs } = useApi(`/work-logs${selectedUser ? `?user_id=${selectedUser}` : ""}`);
   const [dialog, setDialog] = useState({ open: false, member: null });
   const [logDialog, setLogDialog] = useState({ open: false, log: null });
   const [paidBusyId, setPaidBusyId] = useState(null);
@@ -163,7 +163,7 @@ export default function Team() {
       const { data: updated } = await api.put(`/work-logs/${log.id}`, {
         team_paid: !Boolean(log.team_paid),
       });
-      setData((current) => (current || []).map((item) => item.id === updated.id ? updated : item));
+      await reloadLogs();
       toast.success(updated.team_paid ? "Compenso segnato come saldato" : "Saldo del compenso annullato");
     } catch (error) {
       toast.error(errMsg(error));
@@ -185,7 +185,7 @@ export default function Team() {
         {!logs?.length ? <p className="text-sm text-slate-500">Nessun lavoro registrato.</p> : <div className="space-y-6">{Object.entries(groupedLogs).map(([memberName, memberLogs]) => {
           const pending = memberLogs.filter((log) => !log.team_paid);
           const paid = memberLogs.filter((log) => log.team_paid);
-          return <section key={memberName} className="space-y-3"><h3 className="text-base font-bold text-slate-900">{memberName}</h3><div className="grid gap-4 xl:grid-cols-2"><CompensationList title="Da saldare" logs={pending} paid={false} busyId={paidBusyId} onTogglePaid={togglePaid} onEdit={(log) => setLogDialog({ open: true, log })} onDelete={async (log) => { try { await api.delete(`/work-logs/${log.id}`); toast.success("Lavoro eliminato"); setData((current) => (current || []).filter((item) => item.id !== log.id)); } catch (e) { toast.error(errMsg(e)); } }} /><CompensationList title="Già saldati" logs={paid} paid busyId={paidBusyId} onTogglePaid={togglePaid} onEdit={(log) => setLogDialog({ open: true, log })} onDelete={async (log) => { try { await api.delete(`/work-logs/${log.id}`); toast.success("Lavoro eliminato"); setData((current) => (current || []).filter((item) => item.id !== log.id)); } catch (e) { toast.error(errMsg(e)); } }} /></div></section>;
+          return <section key={memberName} className="space-y-3"><h3 className="text-base font-bold text-slate-900">{memberName}</h3><div className="grid gap-4 xl:grid-cols-2"><CompensationList title="Da saldare" logs={pending} paid={false} busyId={paidBusyId} onTogglePaid={togglePaid} onEdit={(log) => setLogDialog({ open: true, log })} onDelete={async (log) => { try { await api.delete(`/work-logs/${log.id}`); await reloadLogs(); toast.success("Lavoro eliminato"); } catch (e) { toast.error(errMsg(e)); } }} /><CompensationList title="Già saldati" logs={paid} paid busyId={paidBusyId} onTogglePaid={togglePaid} onEdit={(log) => setLogDialog({ open: true, log })} onDelete={async (log) => { try { await api.delete(`/work-logs/${log.id}`); await reloadLogs(); toast.success("Lavoro eliminato"); } catch (e) { toast.error(errMsg(e)); } }} /></div></section>;
         })}</div>}
       </Panel>
       {loading ? <Loading /> : !data?.length ? <EmptyState icon={UserCog} title="Nessun membro" /> : (

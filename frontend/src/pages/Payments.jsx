@@ -16,7 +16,7 @@ function PaidDialog({ payment, onClose, onDone }) {
   const submit = async () => {
     setBusy(true);
     try {
-      await api.post(`/payments/${payment.id}/mark-paid`, { paid_date: date });
+      await api.put(`/payments/${payment.id}`, { status: "saldato", paid_date: date || null });
       toast.success("Pagamento segnato come saldato");
       onDone();
       onClose();

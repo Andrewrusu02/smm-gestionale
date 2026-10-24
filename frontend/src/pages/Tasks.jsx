@@ -59,7 +59,7 @@ function TaskCard({ t, me, isAdmin, onClaim, onRelease, onMove, onEdit, onComple
 
 export default function Tasks() {
   const { user, isAdmin } = useAuth();
-  const { data: tasks, loading, reload, setData } = useApi("/tasks");
+  const { data: tasks, loading, reload } = useApi("/tasks");
   const { data: clients } = useApi("/clients/basic");
   const { data: users } = useApi("/users/basic");
   const [filter, setFilter] = useState({ q: "", client: "", scope: "tutti" });
@@ -71,15 +71,13 @@ export default function Tasks() {
     (!filter.client || String(t.client_id) === filter.client) &&
     (filter.scope === "tutti" || (filter.scope === "miei" ? t.assignee_id === user.id : !t.assignee_id))), [tasks, filter, user.id]);
 
-  const replace = (nt) => setData((list) => list.map((x) => (x.id === nt.id ? nt : x)));
   const act = async (fn, ok) => {
     try {
-      const { data } = await fn();
-      replace(data);
+      await fn();
+      await reload();
       if (ok) toast.success(ok);
     } catch (e) {
       toast.error(errMsg(e));
-      reload();
     }
   };
   const claim = (t) => act(() => api.post(`/tasks/${t.id}/claim`), "Task preso in carico");

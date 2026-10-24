@@ -8,7 +8,7 @@ import logging  # noqa: E402
 import os  # noqa: E402
 from fastapi import FastAPI  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
-from database import Base, SessionLocal, add_missing_columns, engine  # noqa: E402
+from database import SessionLocal  # noqa: E402
 import models  # noqa: E402,F401
 from security import seed_admin  # noqa: E402
 from services import backfill_cycles, refresh_payment_statuses  # noqa: E402
@@ -37,8 +37,6 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    Base.metadata.create_all(bind=engine)
-    add_missing_columns()
     with SessionLocal() as db:
         seed_admin(db)
         backfill_cycles(db)

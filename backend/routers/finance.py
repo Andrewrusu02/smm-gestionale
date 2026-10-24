@@ -42,6 +42,8 @@ class PaymentUpdate(BaseModel):
     due_date: Optional[date] = None
     period: Optional[str] = None
     notes: Optional[str] = None
+    paid_date: Optional[date] = None
+    status: Optional[Literal["in_attesa", "in_ritardo", "saldato"]] = None
 
 
 class PaidIn(BaseModel):
@@ -97,6 +99,11 @@ def _set_team_payment_status(worklog: WorkLog, paid: bool) -> None:
     if paid:
         notes = f"{notes} {TEAM_PAID_TAG}".strip()
     worklog.notes = notes or None
+
+
+def _clear_client_if_requested(worklog: WorkLog, body: WorkLogUpdate) -> None:
+    if "client_id" in body.model_fields_set and body.client_id is None:
+        worklog.client_id = None
 
 
 def payment_out(p: Payment):
@@ -155,8 +162,12 @@ def update_payment(pid: int, body: PaymentUpdate, _: User = Depends(require_admi
         if not task or task.client_id != client_id:
             raise HTTPException(status_code=422, detail="Il task non appartiene al cliente selezionato")
     for key, value in body.model_dump(exclude_unset=True).items():
-        if value is not None or key in {"task_id", "description", "invoice_number", "period", "notes"}:
+        if value is not None or key in {"task_id", "description", "invoice_number", "period", "notes", "paid_date"}:
             setattr(p, key, value)
+    if body.status == "saldato" and body.paid_date is None:
+        p.paid_date = date.today()
+    elif body.status and body.status != "saldato":
+        p.paid_date = None
     if body.due_date is not None:
         p.due_date = body.due_date
     if body.period is None and body.due_date is not None:
@@ -252,6 +263,7 @@ def _apply_worklog(db, w: WorkLog, body: WorkLogIn, user: User):
     w.description = body.description or w.description or (task.title if task else "Lavoro")
     notes = body.notes if body.notes is not None else w.notes
     if body.team_paid is not None:
+        w.notes = notes or None
         _set_team_payment_status(w, body.team_paid)
     else:
         w.notes = notes or None
@@ -306,6 +318,7 @@ def update_worklog(wid: int, body: WorkLogUpdate, user: User = Depends(get_curre
         _set_team_payment_status(w, body.team_paid)
         db.commit()
         return worklog_out(w)
+    _clear_client_if_requested(w, body)
     _apply_worklog(db, w, _merge_worklog_update(w, body), user)
     db.commit()
     return worklog_out(w)
@@ -348,6 +361,7 @@ def update_work_log(wid: int, body: WorkLogUpdate, user: User = Depends(get_curr
         _set_team_payment_status(w, body.team_paid)
         db.commit()
         return worklog_out(w)
+    _clear_client_if_requested(w, body)
     _apply_worklog(db, w, _merge_worklog_update(w, body), user)
     db.commit()
     return worklog_out(w)
