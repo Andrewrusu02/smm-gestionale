@@ -188,8 +188,11 @@ def _check_assignee(db, user: User, assignee_id):
         return
     if user.role != "admin" and assignee_id != user.id:
         raise HTTPException(status_code=403, detail="Puoi assegnare i task solo a te stesso")
-    if not db.get(User, assignee_id):
+    assignee = db.get(User, int(assignee_id))
+    if not assignee:
         raise HTTPException(status_code=404, detail="Utente non trovato")
+    if not assignee.active:
+        raise HTTPException(status_code=422, detail="Non puoi assegnare un task a un utente disattivato")
 
 
 @router.post("/tasks")

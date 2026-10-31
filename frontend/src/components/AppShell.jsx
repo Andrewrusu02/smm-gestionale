@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   CalendarDays, ChartNoAxesCombined, FileText, KanbanSquare, LayoutDashboard, LogOut, Menu, Receipt, Settings, Target, UserCog, Users, Video,
@@ -8,6 +8,9 @@ import { useAuth } from "@/context/AuthContext";
 import { initials } from "@/lib/constants";
 import NotificationsBell from "@/components/NotificationsBell";
 import { cn } from "@/lib/utils";
+
+const THEME_KEY = "smm_theme";
+const avatarKey = (user) => `smm_avatar_${user?.id || user?.email || "current"}`;
 
 const ADMIN_NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
@@ -31,8 +34,12 @@ const EMPLOYEE_NAV = [
 
 function SidebarBody({ onNavigate }) {
   const { user, isAdmin, logout } = useAuth();
+  const [avatar, setAvatar] = useState(() => localStorage.getItem(avatarKey(user)));
   const navigate = useNavigate();
   const nav = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
+  useEffect(() => {
+    setAvatar(localStorage.getItem(avatarKey(user)));
+  }, [user]);
   return (
     <div className="grain flex h-full flex-col bg-slate-950 text-slate-300">
       <div className="flex h-16 items-center gap-3 px-6">
@@ -65,7 +72,7 @@ function SidebarBody({ onNavigate }) {
       <div className="m-3 rounded-2xl bg-white/5 p-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-500/20 text-sm font-bold text-indigo-300">
-            {initials(user?.name)}
+            {avatar ? <img src={avatar} alt="" className="h-full w-full rounded-full object-cover" /> : initials(user?.name)}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white" data-testid="sidebar-user-name">{user?.name}</p>
@@ -87,8 +94,12 @@ function SidebarBody({ onNavigate }) {
 
 export default function AppShell() {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const theme = localStorage.getItem(THEME_KEY) || "light";
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, []);
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-900 dark:text-slate-100">
       <aside className="fixed inset-y-0 left-0 hidden w-64 md:block">
         <SidebarBody />
       </aside>
@@ -98,7 +109,7 @@ export default function AppShell() {
         </SheetContent>
       </Sheet>
       <div className="md:pl-64">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/70 bg-slate-50/80 px-4 backdrop-blur-xl sm:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/70 bg-slate-50/80 px-4 backdrop-blur-xl dark:border-slate-700/70 dark:bg-slate-900/80 sm:px-8">
           <button className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-slate-200/60 md:hidden" onClick={() => setOpen(true)} data-testid="mobile-menu-button">
             <Menu className="h-5 w-5" />
           </button>

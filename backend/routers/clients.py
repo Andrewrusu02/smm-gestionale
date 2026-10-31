@@ -58,6 +58,7 @@ def client_out(db, c: Client):
     d["usage"] = client_usage(db, c)
     d["credits_exhausted"] = bool(d["usage"]) and all(u["remaining"] == 0 for u in d["usage"])
     d["overdue_count"] = sum(1 for p in c.payments if p.status == "in_ritardo")
+    d["open_payment_count"] = sum(1 for p in c.payments if p.status != "saldato")
     d["open_tasks"] = sum(1 for t in c.tasks if t.status != "completato")
     d["total_amount"] = round(sum(p.amount for p in c.payments), 2)
     d["paid_amount"] = round(sum(p.amount for p in c.payments if p.status == "saldato"), 2)
@@ -76,6 +77,7 @@ def packages(_: User = Depends(get_current_user)):
 
 @router.get("/clients")
 def list_clients(_: User = Depends(require_admin), db: Session = Depends(get_db)):
+    refresh_payment_statuses(db)
     return [client_out(db, c) for c in db.query(Client).order_by(Client.active.desc(), Client.name).all()]
 
 
@@ -102,9 +104,17 @@ def renew_package(client_id: int, _: User = Depends(require_admin), db: Session 
         raise HTTPException(status_code=404, detail="Cliente non trovato")
     if not package_for(c):
         raise HTTPException(status_code=400, detail="Solo i clienti in abbonamento hanno un pacchetto da rinnovare")
+    latest = max((p for p in c.payments if p.kind == "abbonamento"), key=lambda p: p.due_date, default=None)
+    if latest:
+        next_month = latest.due_date.month % 12 + 1
+        next_year = latest.due_date.year + (1 if latest.due_date.month == 12 else 0)
+        next_reference = date(next_year, next_month, 1)
+    else:
+        today = date.today()
+        next_reference = date(today.year, today.month, 1)
     c.cycle_number = (c.cycle_number or 1) + 1
     c.cycle_started_at = utcnow()
-    create_cycle_payment(db, c, c.cycle_number)
+    create_cycle_payment(db, c, c.cycle_number, next_reference)
     db.commit()
     return client_out(db, c)
 

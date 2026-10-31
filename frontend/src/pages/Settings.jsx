@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, Copy, Link2, Loader2, RefreshCw, Unplug } from "lucide-react";
+import { CheckCircle2, Copy, Link2, Loader2, Moon, RefreshCw, Sun, Unplug, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,9 @@ import { fmtDateTime } from "@/lib/constants";
 
 function ProfileTab() {
   const { user, setUser } = useAuth();
+  const [theme, setTheme] = useState(() => localStorage.getItem("smm_theme") || "light");
+  const avatarKey = `smm_avatar_${user.id || user.email}`;
+  const [avatar, setAvatar] = useState(() => localStorage.getItem(avatarKey));
   const [form, setForm] = useState({ name: user.name, phone: user.phone || "" });
   const [busy, setBusy] = useState(false);
   const save = async (e) => {
@@ -27,8 +30,37 @@ function ProfileTab() {
       setBusy(false);
     }
   };
+  const changeTheme = (next) => {
+    setTheme(next);
+    localStorage.setItem("smm_theme", next);
+    document.documentElement.classList.toggle("dark", next === "dark");
+  };
+  const uploadAvatar = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Seleziona un'immagine valida");
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = String(reader.result);
+      localStorage.setItem(avatarKey, value);
+      setAvatar(value);
+      toast.success("Immagine profilo aggiornata");
+    };
+    reader.onerror = () => toast.error("Impossibile leggere l'immagine");
+    reader.readAsDataURL(file);
+  };
   return (
+    <div className="space-y-6">
     <Panel title="Profilo" className="max-w-xl">
+      <div className="mb-5 flex items-center gap-4">
+        <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-lg font-bold text-indigo-700">
+          {avatar ? <img src={avatar} alt="Avatar profilo" className="h-full w-full object-cover" /> : user.name?.slice(0, 1).toUpperCase()}
+        </div>
+        <label className="inline-flex cursor-pointer items-center rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50">
+          <Upload className="mr-2 h-4 w-4" />Carica immagine
+          <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} data-testid="profile-avatar-input" />
+        </label>
+      </div>
       <form onSubmit={save} className="space-y-4">
         <Field label="Email"><Input value={user.email} disabled data-testid="profile-email-input" /></Field>
         <Field label="Nome"><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="profile-name-input" /></Field>
@@ -36,6 +68,15 @@ function ProfileTab() {
         <Button type="submit" disabled={busy} className="bg-indigo-600 hover:bg-indigo-700" data-testid="profile-save-button">{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salva</Button>
       </form>
     </Panel>
+    <Panel title="Aspetto" className="max-w-xl">
+      <div className="flex items-center justify-between gap-4">
+        <div><p className="font-semibold">Tema interfaccia</p><p className="text-sm text-slate-500">La preferenza viene salvata in questo browser.</p></div>
+        <Button type="button" variant="outline" onClick={() => changeTheme(theme === "dark" ? "light" : "dark")} data-testid="theme-toggle">
+          {theme === "dark" ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}{theme === "dark" ? "Tema chiaro" : "Tema scuro"}
+        </Button>
+      </div>
+    </Panel>
+    </div>
   );
 }
 

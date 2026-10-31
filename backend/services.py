@@ -48,11 +48,11 @@ def shift_period(period: str, delta: int) -> str:
 CREDITS_EXHAUSTED_MSG = "Attenzione: questo cliente ha esaurito i crediti per questo contenuto"
 
 
-def create_cycle_payment(db, client: Client, cycle: int):
+def create_cycle_payment(db, client: Client, cycle: int, reference: date | None = None):
     pkg = package_for(client)
     if not pkg:
         return
-    period, due_date = subscription_period_and_due_date(client)
+    period, due_date = subscription_period_and_due_date(client, reference)
     db.add(Payment(
         client_id=client.id,
         kind="abbonamento",
@@ -69,8 +69,8 @@ def subscription_period_and_due_date(client: Client, reference: date | None = No
     start = client.start_date or reference
     cycle = start if start > reference else reference
     period = period_of(cycle)
-    due_day = min(start.day, calendar.monthrange(cycle.year, cycle.month)[1])
-    return period, date(cycle.year, cycle.month, due_day)
+    due_date = date(cycle.year, cycle.month, calendar.monthrange(cycle.year, cycle.month)[1])
+    return period, due_date
 
 
 def ensure_subscription_payment(db, client: Client, cycle: int | None = None):
@@ -116,8 +116,7 @@ def refresh_payment_statuses(db):
         client = payment.client
         if client and client.start_date and payment.period:
             year, month = map(int, payment.period.split("-"))
-            day = min(client.start_date.day, calendar.monthrange(year, month)[1])
-            payment.due_date = date(year, month, day)
+            payment.due_date = date(year, month, calendar.monthrange(year, month)[1])
     db.query(Payment).filter(Payment.paid_date.is_(None), Payment.due_date < today, Payment.status != "in_ritardo") \
         .update({"status": "in_ritardo"}, synchronize_session=False)
     db.query(Payment).filter(Payment.paid_date.is_(None), Payment.due_date >= today, Payment.status == "in_ritardo") \

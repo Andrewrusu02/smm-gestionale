@@ -402,17 +402,25 @@ def jobs_report(client_id: Optional[int] = None, user_id: Optional[int] = None,
 
 
 @router.get("/dashboard")
-def dashboard(months: int = 6, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def dashboard(months: int = 6, month: Optional[int] = None, year: Optional[int] = None,
+              _: User = Depends(require_admin), db: Session = Depends(get_db)):
     months = max(1, min(months, 24))
-    current = period_of(date.today())
+    if month is not None and not 1 <= month <= 12:
+        raise HTTPException(status_code=422, detail="Il mese deve essere compreso tra 1 e 12")
+    if year is not None and not 2000 <= year <= 2100:
+        raise HTTPException(status_code=422, detail="L'anno non è valido")
+    selected = date(year or date.today().year, month or date.today().month, 1)
+    current = period_of(selected)
     refresh_payment_statuses(db)
+    total_revenue = db.query(func.coalesce(func.sum(Task.price_charged_to_client), 0)).scalar() or 0
+    total_expenses = db.query(func.coalesce(func.sum(WorkLog.worker_expense), 0)).scalar() or 0
     periods = [shift_period(current, -i) for i in range(months - 1, -1, -1)]
     first, _e = month_bounds(periods[0])
     _s, last = month_bounds(current)
     rev, cash, cost = defaultdict(float), defaultdict(float), defaultdict(float)
     rev_sub, rev_jobs = defaultdict(float), defaultdict(float)
-    for p in db.query(Payment).filter(Payment.due_date >= first, Payment.due_date <= last).all():
-        k = period_of(p.due_date)
+    for p in db.query(Payment).filter(Payment.paid_date >= first, Payment.paid_date <= last).all():
+        k = period_of(p.paid_date)
         if p.status == "saldato":
             cash[k] += p.amount
     logs = db.query(WorkLog).filter(WorkLog.date >= first, WorkLog.date <= last).all()
@@ -457,12 +465,19 @@ def dashboard(months: int = 6, _: User = Depends(require_admin), db: Session = D
     return {
         "series": series,
         "kpi": {
-            "entrate_mese": cur["entrate"], "spese_mese": cur["spese"], "utile_mese": cur["utile"],
+            "entrate_mese": cur["incassato"], "fatturato_mese": cur["entrate"],
+            "spese_mese": cur["spese"], "utile_mese": round(cur["incassato"] - cur["spese"], 2),
             "incassato_mese": cur["incassato"], "mrr": mrr,
+            "periodo_selezionato": current,
             "clienti_attivi": len(active), "abbonamenti_attivi": sum(d["value"] for d in dist),
             "ritardi_count": len(overdue), "ritardi_importo": round(sum(p.amount for p in overdue), 2),
             "task_aperti": db.query(Task).filter(Task.status != "completato").count(),
             "task_non_assegnati": db.query(Task).filter(Task.status != "completato", Task.assignee_id.is_(None)).count(),
+        },
+        "financial_stats": {
+            "entrate_totali": round(float(total_revenue), 2),
+            "spese_totali": round(float(total_expenses), 2),
+            "utile_netto": round(float(total_revenue) - float(total_expenses), 2),
         },
         "package_distribution": dist,
         "leaderboard": leaderboard,

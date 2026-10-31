@@ -1,7 +1,7 @@
 # SMM Gestionale | Agency Suite
 
 <p align="center">
-  <img src="https://via.placeholder.com/180x180.png?text=SMM" alt="Logo SMM Gestionale" width="180">
+  <img src="\smm-gestionale\frontend\ICON\ICONA.png" alt="Logo SMM Gestionale" width="180">
 </p>
 
 <p align="center">

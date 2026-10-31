@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Banknote, KanbanSquare, PiggyBank, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import {
@@ -5,8 +6,9 @@ import {
 } from "recharts";
 import { Chip, Loading, PageHeader, Panel, StatCard } from "@/components/common";
 import { useApi } from "@/lib/api";
-import { eur, fmtDate, PACKAGE_STYLE, periodLabel } from "@/lib/constants";
+import { currentPeriod, eur, fmtDate, PACKAGE_STYLE, periodLabel } from "@/lib/constants";
 import { useAuth } from "@/context/AuthContext";
+import { Input } from "@/components/ui/input";
 
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12 };
 
@@ -118,7 +120,9 @@ function PaymentList({ items, empty, testId }) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { data, loading } = useApi("/dashboard?months=6");
+  const [period, setPeriod] = useState(currentPeriod);
+  const [selectedYear, selectedMonth] = period.split("-");
+  const { data, loading } = useApi(`/dashboard?months=6&year=${selectedYear}&month=${selectedMonth}`);
   if (loading || !data) return <Loading />;
   const k = data.kpi;
   return (
@@ -127,9 +131,21 @@ export default function Dashboard() {
         eyebrow="Reportistica"
         title={`Ciao ${user.name}`}
         subtitle="Andamento economico dell'agenzia: entrate da abbonamenti e lavori singoli, costi del team dai log lavori e utile netto."
+        actions={<div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+          <label htmlFor="dashboard-period" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Periodo</label>
+          <Input id="dashboard-period" type="month" value={period} onChange={(e) => e.target.value && setPeriod(e.target.value)} className="h-9 w-40 bg-white" data-testid="dashboard-period-filter" />
+        </div>}
       />
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <StatCard label="Entrate totali" value={eur(data.financial_stats?.entrate_totali)} hint="Prezzi fatturati ai clienti" icon={TrendingUp} tone="emerald" testId="financial-total-revenue" />
+        <StatCard label="Spese totali" value={eur(data.financial_stats?.spese_totali)} hint="Compensi registrati al team" icon={TrendingDown} tone="rose" testId="financial-total-expenses" className="rise-1" />
+        <StatCard label="Utile netto" value={eur(data.financial_stats?.utile_netto)} hint="Entrate − spese" icon={PiggyBank} tone="indigo" testId="financial-net-profit" className="rise-2" />
+      </div>
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Entrate del mese" value={eur(k.entrate_mese)} hint={`Incassato ${eur(k.incassato_mese)}`} icon={TrendingUp} tone="emerald" testId="kpi-entrate" />
+        <div className="relative">
+          <StatCard label={`Entrate di ${periodLabel(period, true)}`} value={eur(k.entrate_mese)} hint="Pagamenti saldati nel periodo" icon={TrendingUp} tone="emerald" testId="kpi-entrate" />
+          {loading && <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/80"><span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" aria-label="Aggiornamento entrate" /></div>}
+        </div>
         <StatCard label="Spese del mese" value={eur(k.spese_mese)} hint="Costi da log lavori" icon={TrendingDown} tone="rose" testId="kpi-spese" className="rise-1" />
         <StatCard label="Utile netto" value={eur(k.utile_mese)} hint="Entrate − spese" icon={PiggyBank} tone="indigo" testId="kpi-utile" className="rise-2" />
         <StatCard label="Valore abbonamenti attivi" value={eur(k.mrr)} hint={`${k.abbonamenti_attivi} abbonamenti attivi`} icon={Banknote} tone="slate" testId="kpi-mrr" className="rise-3" />

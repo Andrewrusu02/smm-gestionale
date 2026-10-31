@@ -53,7 +53,7 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
       if (task) await api.put(`/tasks/${task.id}`, body);
       else await api.post("/tasks", body);
       toast.success(task ? "Task aggiornato" : "Task creato");
-      onSaved();
+      await onSaved?.();
       onOpenChange(false);
     } catch (err) {
       toast.error(errMsg(err));
