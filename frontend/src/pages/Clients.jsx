@@ -55,8 +55,8 @@ export default function Clients() {
 
   const filtered = useMemo(() => (data || []).filter((c) =>
     (tab === "tutti" || (tab === "abbonamento" && c.package)) && c.name.toLowerCase().includes(q.toLowerCase())), [data, tab, q]);
-  const list = filtered.filter((c) => c.active || (c.open_payment_count ?? (c.balance > 0 ? 1 : 0)) > 0);
-  const inactive = filtered.filter((c) => !c.active && (c.open_payment_count ?? (c.balance > 0 ? 1 : 0)) === 0);
+  const activeClients = filtered.filter((c) => (Number(c.balance) || 0) !== 0);
+  const inactiveClients = filtered.filter((c) => (Number(c.balance) || 0) === 0);
   const renderCards = (items) => (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
       {items.map((c) => <ClientCard key={c.id} c={c} onOpen={() => navigate(`/clienti/${c.id}`)} />)}
@@ -79,18 +79,18 @@ export default function Clients() {
           <Input placeholder="Cerca cliente..." value={q} onChange={(e) => setQ(e.target.value)} className="bg-white pl-9" data-testid="clients-search-input" />
         </div>
       </div>
-      {loading ? <Loading /> : list.length === 0 && inactive.length === 0 ? (
+      {loading ? <Loading /> : activeClients.length === 0 && inactiveClients.length === 0 ? (
         <EmptyState icon={Users} title="Nessun cliente" text="Aggiungi il primo cliente per iniziare a pianificare contenuti e incassi." testId="clients-empty"
           action={<Button onClick={() => setOpen(true)} variant="outline">Aggiungi cliente</Button>} />
-      ) : renderCards(list)}
-      {!loading && inactive.length > 0 && (
+      ) : renderCards(activeClients)}
+      {!loading && inactiveClients.length > 0 && (
         <Accordion type="single" collapsible className="mt-8 rounded-2xl border border-slate-200 bg-white px-5 shadow-sm" data-testid="inactive-clients-accordion">
           <AccordionItem value="inactive" className="border-0">
             <AccordionTrigger className="py-4 no-underline hover:no-underline">
-              <span><span className="font-bold text-slate-800">Clienti inattivi archiviati</span><span className="ml-2 text-sm font-normal text-slate-500">({inactive.length})</span></span>
+              <span><span className="font-bold text-slate-800">Clienti non attivi attualmente</span><span className="ml-2 text-sm font-normal text-slate-500">({inactiveClients.length})</span></span>
             </AccordionTrigger>
             <AccordionContent className="pt-2">
-              {renderCards(inactive)}
+              {renderCards(inactiveClients)}
             </AccordionContent>
           </AccordionItem>
         </Accordion>
