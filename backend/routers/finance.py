@@ -1,6 +1,7 @@
 from collections import defaultdict
 from calendar import monthrange
 from datetime import date, datetime, time, timedelta
+import datetime as _dt
 from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -57,7 +58,7 @@ class GenerateIn(BaseModel):
 class WorkLogIn(BaseModel):
     client_id: Optional[int] = None
     task_id: Optional[int] = None
-    date: Optional[date] = None
+    date: Optional[_dt.date] = None  # alias: un campo chiamato "date" oscura il tipo date in Pydantic
     completed_at: Optional[datetime] = None
     description: Optional[str] = None
     notes: Optional[str] = None
@@ -72,7 +73,7 @@ class WorkLogIn(BaseModel):
 class WorkLogUpdate(BaseModel):
     client_id: Optional[int] = None
     task_id: Optional[int] = None
-    date: Optional[date] = None
+    date: Optional[_dt.date] = None  # alias: un campo chiamato "date" oscura il tipo date in Pydantic
     completed_at: Optional[datetime] = None
     description: Optional[str] = None
     notes: Optional[str] = None
@@ -91,6 +92,21 @@ LEGACY_TEAM_PAID_TAG = "[team-paid]"
 def _team_payment_status(notes: Optional[str]) -> bool:
     value = notes or ""
     return TEAM_PAID_TAG in value or LEGACY_TEAM_PAID_TAG in value
+
+
+def _clean_notes(notes: Optional[str]) -> Optional[str]:
+    """Note senza il tag interno di saldo (il tag resta solo nel DB)."""
+    value = (notes or "").replace(TEAM_PAID_TAG, "").replace(LEGACY_TEAM_PAID_TAG, "").strip()
+    return value or None
+
+
+def _cost_mode(w: WorkLog) -> str:
+    """'ore' se il costo deriva da ore x tariffa, altrimenti 'prestazione' (importo fisso)."""
+    hours = w.hours or 0
+    rate = (w.user.hourly_rate or 0) if w.user else 0
+    if hours > 0 and rate > 0 and abs((w.worker_expense or 0) - round(hours * rate, 2)) < 0.01:
+        return "ore"
+    return "prestazione"
 
 
 def _set_team_payment_status(worklog: WorkLog, paid: bool) -> None:
@@ -213,6 +229,10 @@ def worklog_out(w: WorkLog):
     d["client_revenue"] = w.revenue_amount or 0
     d["margin"] = round((w.revenue_amount or 0) - (w.worker_expense or 0), 2)
     d["team_paid"] = _team_payment_status(w.notes)
+    d["notes"] = _clean_notes(w.notes)
+    d["cost_mode"] = _cost_mode(w)
+    d["fixed_cost"] = (w.worker_expense or 0) if d["cost_mode"] == "prestazione" else None
+    d["task_title"] = d["task_title"] or w.task_title
     d["billing_group"] = "subscription" if w.contract and w.contract.type == "SUBSCRIPTION" else "single_job"
     return d
 
@@ -262,12 +282,12 @@ def _apply_worklog(db, w: WorkLog, body: WorkLogIn, user: User):
     w.task_id, w.date = task_id, work_date
     w.completed_at = completed_at
     w.description = body.description or w.description or (task.title if task else "Lavoro")
+    was_paid = _team_payment_status(w.notes)
     notes = body.notes if body.notes is not None else w.notes
-    if body.team_paid is not None:
-        w.notes = notes or None
-        _set_team_payment_status(w, body.team_paid)
-    else:
-        w.notes = notes or None
+    w.notes = notes or None
+    # Lo stato "saldato" vive come tag nelle note: va preservato se la richiesta non lo cambia,
+    # altrimenti una modifica delle note (o un form che non lo conosce) annulla il saldo.
+    _set_team_payment_status(w, body.team_paid if body.team_paid is not None else was_paid)
     w.hours, w.fixed_cost = body.hours, fixed_cost
     w.worker_expense = fixed_cost if fixed_cost is not None else worklog_cost(owner, body.hours, None)
     if body.client_revenue is not None:
@@ -296,6 +316,16 @@ def _own_worklog(db, wid, user) -> WorkLog:
 
 
 def _merge_worklog_update(w: WorkLog, body: WorkLogUpdate) -> WorkLogIn:
+    fields = body.model_fields_set
+    hours = body.hours if body.hours is not None else (w.hours or 0)
+    if body.worker_payout is not None:
+        payout = body.worker_payout
+    elif body.fixed_cost is not None:
+        payout = body.fixed_cost  # nuovo importo a prestazione
+    elif "fixed_cost" in fields and hours > 0:
+        payout = None  # modalità ore: ricalcola ore x tariffa
+    else:
+        payout = w.worker_expense
     return WorkLogIn(
         client_id=body.client_id if body.client_id is not None else w.client_id,
         task_id=body.task_id if body.task_id is not None else w.task_id,
@@ -303,9 +333,9 @@ def _merge_worklog_update(w: WorkLog, body: WorkLogUpdate) -> WorkLogIn:
         completed_at=body.completed_at or w.completed_at,
         description=body.description or w.description,
         notes=body.notes if body.notes is not None else w.notes,
-        hours=body.hours if body.hours is not None else (w.hours or 0),
-        fixed_cost=body.fixed_cost,
-        worker_payout=body.worker_payout if body.worker_payout is not None else w.worker_expense,
+        hours=hours,
+        fixed_cost=None,
+        worker_payout=payout,
         client_revenue=body.client_revenue if body.client_revenue is not None else w.revenue_amount,
         user_id=body.user_id if body.user_id is not None else w.user_id,
         team_paid=body.team_paid,
@@ -412,7 +442,8 @@ def dashboard(months: int = 6, month: Optional[int] = None, year: Optional[int] 
     selected = date(year or date.today().year, month or date.today().month, 1)
     current = period_of(selected)
     refresh_payment_statuses(db)
-    total_revenue = db.query(func.coalesce(func.sum(Task.price_charged_to_client), 0)).scalar() or 0
+    # Entrate e spese dalla stessa fonte (log lavori): prima le entrate includevano anche i task non completati.
+    total_revenue = db.query(func.coalesce(func.sum(WorkLog.revenue_amount), 0)).scalar() or 0
     total_expenses = db.query(func.coalesce(func.sum(WorkLog.worker_expense), 0)).scalar() or 0
     periods = [shift_period(current, -i) for i in range(months - 1, -1, -1)]
     first, _e = month_bounds(periods[0])
@@ -446,12 +477,14 @@ def dashboard(months: int = 6, month: Optional[int] = None, year: Optional[int] 
     mrr = sum((package_for(c) or {}).get("price", 0) for c in active if c.package)
 
     month_start = datetime.combine(month_bounds(current)[0], time.min)
+    month_end = datetime.combine(month_bounds(current)[1] + timedelta(days=1), time.min)
     done_month = dict(db.query(Task.assignee_id, func.count(Task.id)).filter(
-        Task.status == "completato", Task.completed_at >= month_start).group_by(Task.assignee_id).all())
+        Task.status == "completato", Task.completed_at >= month_start, Task.completed_at < month_end)
+        .group_by(Task.assignee_id).all())
     done_total = dict(db.query(Task.assignee_id, func.count(Task.id)).filter(
         Task.status == "completato").group_by(Task.assignee_id).all())
     hours = dict(db.query(WorkLog.user_id, func.sum(WorkLog.hours)).filter(
-        WorkLog.date >= month_start.date()).group_by(WorkLog.user_id).all())
+        WorkLog.date >= month_start.date(), WorkLog.date < month_end.date()).group_by(WorkLog.user_id).all())
     leaderboard = sorted([{
         "user_id": u.id, "name": u.name, "role": u.role, "completed_month": done_month.get(u.id, 0),
         "completed_total": done_total.get(u.id, 0), "hours_month": round(hours.get(u.id) or 0, 2),

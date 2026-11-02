@@ -93,25 +93,70 @@ def change_password(body: PasswordIn, user: User = Depends(get_current_user), db
     return {"ok": True}
 
 
-def _month_range():
+def _month_range(year: Optional[int] = None, month: Optional[int] = None):
     t = date.today()
-    start = date(t.year, t.month, 1)
-    nxt = date(t.year + (t.month == 12), t.month % 12 + 1, 1)
+    y, m = year or t.year, month or t.month
+    if not 1 <= m <= 12 or not 2000 <= y <= 2100:
+        raise HTTPException(status_code=422, detail="Periodo non valido")
+    start = date(y, m, 1)
+    nxt = date(y + (m == 12), m % 12 + 1, 1)
     return start, nxt
 
 
 @router.get("/users")
-def list_users(_: User = Depends(require_admin), db: Session = Depends(get_db)):
-    start, nxt = _month_range()
-    logs = dict((uid, (h, c)) for uid, h, c in db.query(WorkLog.user_id, func.sum(WorkLog.hours), func.sum(WorkLog.worker_expense))
-                .filter(WorkLog.date >= start, WorkLog.date < nxt).group_by(WorkLog.user_id).all())
+def list_users(year: Optional[int] = None, month: Optional[int] = None,
+               _: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Membri del team con i numeri del mese scelto (default: mese corrente) e il debito aperto.
+
+    - month_*: lavori con data nel mese selezionato (competenza).
+    - pending_*: compensi non ancora saldati, di qualsiasi mese (è quanto devi davvero).
+    - paid_total: compensi già saldati, di qualsiasi mese.
+    """
+    from routers.finance import _team_payment_status  # import locale: evita cicli all'avvio
+
+    start, nxt = _month_range(year, month)
+    stats = {}
+    for w in db.query(WorkLog).all():
+        s = stats.setdefault(w.user_id, dict(month_hours=0.0, month_cost=0.0, month_revenue=0.0, month_jobs=0,
+                                              pending_payout=0.0, pending_count=0, paid_total=0.0,
+                                              zero_payout_count=0, last_log_date=None))
+        payout = w.worker_expense or 0
+        if start <= w.date < nxt:
+            s["month_hours"] += w.hours or 0
+            s["month_cost"] += payout
+            s["month_revenue"] += w.revenue_amount or 0
+            s["month_jobs"] += 1
+        if _team_payment_status(w.notes):
+            s["paid_total"] += payout
+        else:
+            s["pending_payout"] += payout
+            s["pending_count"] += 1
+            if payout <= 0:
+                s["zero_payout_count"] += 1
+        if not s["last_log_date"] or w.date > s["last_log_date"]:
+            s["last_log_date"] = w.date
     done = dict(db.query(Task.assignee_id, func.count(Task.id)).filter(
-        Task.status == "completato", Task.completed_at >= datetime.combine(start, time.min)).group_by(Task.assignee_id).all())
+        Task.status == "completato",
+        Task.completed_at >= datetime.combine(start, time.min),
+        Task.completed_at < datetime.combine(nxt, time.min)).group_by(Task.assignee_id).all())
     out = []
     for u in db.query(User).order_by(User.role, User.name).all():
         d = user_out(u)
-        h, c = logs.get(u.id, (0, 0))
-        d.update(month_hours=round(h or 0, 2), month_cost=round(c or 0, 2), month_completed=done.get(u.id, 0))
+        s = stats.get(u.id, {})
+        d.update(
+            month_hours=round(s.get("month_hours", 0), 2),
+            month_cost=round(s.get("month_cost", 0), 2),
+            month_revenue=round(s.get("month_revenue", 0), 2),
+            month_margin=round(s.get("month_revenue", 0) - s.get("month_cost", 0), 2),
+            month_jobs=s.get("month_jobs", 0),
+            month_completed=done.get(u.id, 0),
+            pending_payout=round(s.get("pending_payout", 0), 2),
+            pending_count=s.get("pending_count", 0),
+            paid_total=round(s.get("paid_total", 0), 2),
+            zero_payout_count=s.get("zero_payout_count", 0),
+            last_log_date=s["last_log_date"].isoformat() if s.get("last_log_date") else None,
+            period=f"{start.year}-{start.month:02d}",
+        )
         out.append(d)
     return out
 
