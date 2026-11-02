@@ -1,0 +1,142 @@
+/*
+ * Tema scuro.
+ * Le pagine usano classi chiare fisse (bg-white, text-slate-900, bg-emerald-50...):
+ * qui vengono rimappate quando <html> ha la classe "dark", senza toccare ogni componente.
+ */
+
+.dark {
+    color-scheme: dark; /* calendari, select e scrollbar native in versione scura */
+    --background: 222 47% 8%;
+    --foreground: 210 40% 96%;
+    --card: 217 33% 14%;
+    --card-foreground: 210 40% 96%;
+    --popover: 217 33% 14%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 33% 20%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 33% 20%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 22%;
+    --accent-foreground: 226 100% 87%;
+    --destructive: 350 80% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 217 25% 24%;
+    --input: 217 25% 28%;
+    --ring: 239 84% 67%;
+}
+
+/* Superfici */
+.dark .bg-white { background-color: #1a2436; }
+.dark .bg-white\/80 { background-color: rgb(26 36 54 / 0.85); }
+.dark .bg-white\/60 { background-color: rgb(26 36 54 / 0.6); }
+.dark .bg-slate-50 { background-color: #141d2d; }
+.dark .bg-slate-50\/60,
+.dark .bg-slate-50\/70 { background-color: rgb(20 29 45 / 0.75); }
+.dark .bg-slate-50\/80 { background-color: rgb(15 23 42 / 0.8); }
+.dark .bg-slate-100 { background-color: #243046; }
+.dark .bg-slate-100\/70 { background-color: rgb(20 29 45 / 0.9); }
+.dark .bg-slate-200\/60 { background-color: rgb(2 6 23 / 0.55); }
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-50\/70:hover { background-color: #222e44; }
+.dark .hover\:bg-slate-200\/60:hover { background-color: rgb(51 65 85 / 0.6); }
+
+/* Bordi */
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-200\/70,
+.dark .border-slate-200\/80 { border-color: #2b3850; }
+.dark .border-slate-300,
+.dark .hover\:border-slate-300:hover { border-color: #3d4b63; }
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #2b3850; }
+
+/* Testo */
+.dark .text-slate-900 { color: #f1f5f9; }
+.dark .text-slate-800 { color: #e2e8f0; }
+.dark .text-slate-700 { color: #cbd5e1; }
+.dark .text-slate-600 { color: #b4c0d0; }
+.dark .text-slate-500 { color: #94a3b8; }
+.dark .text-slate-400 { color: #7f8ea5; }
+.dark .hover\:text-slate-700:hover,
+.dark .hover\:text-slate-800:hover { color: #f1f5f9; }
+
+/* Colori di stato (chip, avvisi, badge) */
+.dark .bg-amber-100 { background-color: rgb(245 158 11 / 0.22); }
+.dark .bg-amber-50 { background-color: rgb(245 158 11 / 0.14); }
+.dark .bg-blue-50 { background-color: rgb(59 130 246 / 0.14); }
+.dark .bg-cyan-50 { background-color: rgb(6 182 212 / 0.14); }
+.dark .bg-emerald-100 { background-color: rgb(16 185 129 / 0.22); }
+.dark .bg-emerald-200\/70 { background-color: rgb(16 185 129 / 0.18); }
+.dark .bg-emerald-50 { background-color: rgb(16 185 129 / 0.14); }
+.dark .bg-emerald-50\/50 { background-color: rgb(16 185 129 / 0.11); }
+.dark .bg-indigo-100 { background-color: rgb(99 102 241 / 0.22); }
+.dark .bg-indigo-50 { background-color: rgb(99 102 241 / 0.14); }
+.dark .bg-indigo-50\/50 { background-color: rgb(99 102 241 / 0.11); }
+.dark .bg-indigo-50\/60 { background-color: rgb(99 102 241 / 0.11); }
+.dark .bg-orange-50 { background-color: rgb(249 115 22 / 0.14); }
+.dark .bg-pink-50 { background-color: rgb(236 72 153 / 0.14); }
+.dark .bg-pink-50\/40 { background-color: rgb(236 72 153 / 0.11); }
+.dark .bg-purple-100 { background-color: rgb(168 85 247 / 0.22); }
+.dark .bg-purple-50 { background-color: rgb(168 85 247 / 0.14); }
+.dark .bg-rose-100 { background-color: rgb(244 63 94 / 0.22); }
+.dark .bg-rose-50 { background-color: rgb(244 63 94 / 0.14); }
+.dark .bg-sky-50 { background-color: rgb(14 165 233 / 0.14); }
+.dark .bg-teal-50 { background-color: rgb(20 184 166 / 0.14); }
+.dark .bg-violet-50 { background-color: rgb(139 92 246 / 0.14); }
+.dark .border-amber-200 { border-color: rgb(245 158 11 / 0.35); }
+.dark .border-blue-200 { border-color: rgb(59 130 246 / 0.35); }
+.dark .border-cyan-200 { border-color: rgb(6 182 212 / 0.35); }
+.dark .border-emerald-200 { border-color: rgb(16 185 129 / 0.35); }
+.dark .border-emerald-300 { border-color: rgb(16 185 129 / 0.35); }
+.dark .border-indigo-100 { border-color: rgb(99 102 241 / 0.35); }
+.dark .border-indigo-200 { border-color: rgb(99 102 241 / 0.35); }
+.dark .border-orange-200 { border-color: rgb(249 115 22 / 0.35); }
+.dark .border-pink-200 { border-color: rgb(236 72 153 / 0.35); }
+.dark .border-purple-200 { border-color: rgb(168 85 247 / 0.35); }
+.dark .border-rose-200 { border-color: rgb(244 63 94 / 0.35); }
+.dark .border-sky-200 { border-color: rgb(14 165 233 / 0.35); }
+.dark .border-teal-200 { border-color: rgb(20 184 166 / 0.35); }
+.dark .border-violet-200 { border-color: rgb(139 92 246 / 0.35); }
+.dark .hover\:bg-emerald-50:hover { background-color: rgb(16 185 129 / 0.14); }
+.dark .hover\:bg-indigo-50\/40:hover { background-color: rgb(99 102 241 / 0.11); }
+.dark .hover\:text-emerald-800:hover { color: #6ee7b7; }
+.dark .hover\:text-indigo-700:hover { color: #a5b4fc; }
+.dark .hover\:text-rose-700:hover { color: #fda4af; }
+.dark .ring-indigo-100 { --tw-ring-color: rgb(99 102 241 / 0.35); }
+.dark .text-amber-700 { color: #fcd34d; }
+.dark .text-amber-800 { color: #fcd34d; }
+.dark .text-blue-700 { color: #93c5fd; }
+.dark .text-cyan-700 { color: #67e8f9; }
+.dark .text-emerald-700 { color: #6ee7b7; }
+.dark .text-emerald-800 { color: #6ee7b7; }
+.dark .text-indigo-700 { color: #a5b4fc; }
+.dark .text-indigo-800 { color: #a5b4fc; }
+.dark .text-indigo-900 { color: #a5b4fc; }
+.dark .text-orange-700 { color: #fdba74; }
+.dark .text-pink-700 { color: #f9a8d4; }
+.dark .text-purple-700 { color: #d8b4fe; }
+.dark .text-purple-800 { color: #d8b4fe; }
+.dark .text-rose-700 { color: #fda4af; }
+.dark .text-rose-800 { color: #fda4af; }
+.dark .text-sky-700 { color: #7dd3fc; }
+.dark .text-teal-700 { color: #5eead4; }
+.dark .text-violet-700 { color: #c4b5fd; }
+.dark .text-amber-600 { color: #fbbf24; }
+.dark .text-emerald-600 { color: #34d399; }
+.dark .text-indigo-600 { color: #818cf8; }
+.dark .text-rose-600 { color: #fb7185; }
+
+/* Grafici (recharts usa colori chiari scritti nel codice) */
+.dark .recharts-cartesian-grid line { stroke: #2b3850; }
+.dark .recharts-cartesian-axis-tick-value { fill: #94a3b8; }
+.dark .recharts-tooltip-cursor { fill: rgb(51 65 85 / 0.35); }
+.dark .recharts-default-tooltip {
+    background-color: #1a2436 !important;
+    border-color: #2b3850 !important;
+    color: #e2e8f0;
+}
+.dark .recharts-legend-item-text { color: #cbd5e1 !important; }
+
+/* Testo selezionato */
+.dark ::selection { background-color: rgb(99 102 241 / 0.45); color: #fff; }

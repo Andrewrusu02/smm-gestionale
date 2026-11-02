@@ -2,7 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@/index.css";
+import "@/dark-theme.css";
 import App from "@/App";
+
+// Applica il tema salvato prima del primo disegno, così non c'è il lampo chiaro (anche nella pagina di login).
+try {
+  document.documentElement.classList.toggle("dark", localStorage.getItem("smm_theme") === "dark");
+} catch {}
 
 const queryClient = new QueryClient({
   defaultOptions: {
