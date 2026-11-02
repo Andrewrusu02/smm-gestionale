@@ -126,7 +126,7 @@ export default function ClientDetail() {
             <div className="space-y-2 text-sm text-slate-600">
               <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-slate-400" />{c.email || "—"}</p>
               <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-slate-400" />{c.phone || "—"}</p>
-              {isSub && <p className="pt-2 text-xs text-slate-500">Attivo dal {fmtDate(c.start_date)} · scadenza rata il giorno {c.billing_day}</p>}
+              {isSub && <p className="pt-2 text-xs text-slate-500">Attivo dal {fmtDate(c.start_date)} · rata in scadenza a fine mese</p>}
               {c.notes && <p className="whitespace-pre-line rounded-lg bg-slate-50 p-3 text-xs">{c.notes}</p>}
             </div>
           </Panel>

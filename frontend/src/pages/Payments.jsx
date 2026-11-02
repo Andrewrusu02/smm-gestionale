@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock, Loader2, Plus, RotateCcw, Trash2, Wallet } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Loader2, Pencil, Plus, RotateCcw, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,10 +21,7 @@ function PaidDialog({ payment, onClose, onDone }) {
       await onDone();
       onClose();
     } catch (e) {
-      const detail = e?.response?.data?.detail || e?.message || "Errore durante l'aggiornamento del pagamento";
-      const message = typeof detail === "string" ? detail : JSON.stringify(detail);
-      alert(message);
-      toast.error(message);
+      toast.error(errMsg(e));
     } finally {
       setBusy(false);
     }
@@ -40,6 +37,49 @@ function PaidDialog({ payment, onClose, onDone }) {
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Segna come saldato
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditPaymentDialog({ payment, onClose, onDone }) {
+  const [form, setForm] = useState({});
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (payment) setForm({ description: payment.description || "", invoice_number: payment.invoice_number || "", amount: payment.amount ?? "", due_date: payment.due_date || "", notes: payment.notes || "" });
+  }, [payment]);
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.patch(`/payments/${payment.id}`, { ...form, amount: Number(form.amount) || 0 });
+      toast.success("Pagamento aggiornato");
+      await onDone();
+      onClose();
+    } catch (err) {
+      toast.error(errMsg(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog open={!!payment} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="mx-4 max-h-[90vh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto p-4 sm:p-6" data-testid="edit-payment-dialog">
+        <DialogHeader><DialogTitle>Modifica pagamento</DialogTitle></DialogHeader>
+        {payment && <p className="text-sm text-slate-600">{payment.client_name}</p>}
+        <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Descrizione" className="sm:col-span-2"><Input value={form.description || ""} onChange={set("description")} /></Field>
+          <Field label="Importo (€) *"><Input type="number" step="0.01" min={0} required value={form.amount} onChange={set("amount")} /></Field>
+          <Field label="Scadenza *"><Input type="date" required value={form.due_date || ""} onChange={set("due_date")} /></Field>
+          <Field label="N. fattura"><Input value={form.invoice_number || ""} onChange={set("invoice_number")} /></Field>
+          <Field label="Note"><Input value={form.notes || ""} onChange={set("notes")} /></Field>
+          <DialogFooter className="sm:col-span-2">
+            <Button type="submit" disabled={busy} className="w-full bg-indigo-600 hover:bg-indigo-700 sm:w-auto">
+              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salva
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -102,6 +142,7 @@ export default function Payments() {
   const { data, reload } = useApi(`/payments${qs(f)}`);
   const { data: clients } = useApi("/clients/basic");
   const [paying, setPaying] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [invoice, setInvoice] = useState(false);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
 
@@ -131,7 +172,7 @@ export default function Payments() {
           <Button onClick={() => setInvoice(true)} className="rounded-xl bg-indigo-600 hover:bg-indigo-700" data-testid="add-invoice-button"><Plus className="mr-2 h-4 w-4" />Nuova fattura</Button>
         </>} />
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Da incassare" value={eur(sum.attesa)} icon={Clock} tone="slate" testId="payments-total-pending" />
+        <StatCard label="Da incassare" value={eur(sum.attesa + sum.ritardo)} hint={`di cui ${eur(sum.ritardo)} già scaduti`} icon={Clock} tone="slate" testId="payments-total-pending" />
         <StatCard label="In ritardo" value={eur(sum.ritardo)} hint={`${sum.lateCount} pagamenti`} icon={AlertTriangle} tone="rose" testId="payments-total-late" className="rise-1" />
         <StatCard label="Saldato" value={eur(sum.saldato)} icon={Wallet} tone="emerald" testId="payments-total-paid" className="rise-2" />
       </div>
@@ -151,27 +192,28 @@ export default function Payments() {
       </div>
       {!data?.length ? <EmptyState icon={Wallet} title="Nessun pagamento" text="Le rate degli abbonamenti vengono create automaticamente ogni mese." testId="payments-empty" /> : (
         <>
-        <PaymentSection title="Da saldare" payments={pending} onMarkPaid={handlePayment} act={act} />
+        <PaymentSection title="Da saldare" payments={pending} onMarkPaid={handlePayment} onEdit={setEditing} act={act} />
         <details className="mt-6 rounded-2xl border border-slate-200/80 bg-white shadow-sm">
           <summary className="cursor-pointer px-5 py-4 text-sm font-bold text-slate-700">Pagamenti Effettuati ({paid.length})</summary>
-          <div className="border-t border-slate-100 p-4"><PaymentTable data={paid} onMarkPaid={handlePayment} act={act} /></div>
+          <div className="border-t border-slate-100 p-4"><PaymentTable data={paid} onMarkPaid={handlePayment} onEdit={setEditing} act={act} /></div>
         </details>
         </>
       )}
       <PaidDialog payment={paying} onClose={() => setPaying(null)} onDone={reload} />
+      <EditPaymentDialog payment={editing} onClose={() => setEditing(null)} onDone={reload} />
       <InvoiceDialog open={invoice} onOpenChange={setInvoice} clients={clients || []} onDone={reload} />
     </div>
   );
 }
 
-function PaymentSection({ title, payments, onMarkPaid, act }) {
+function PaymentSection({ title, payments, onMarkPaid, onEdit, act }) {
   return <section>
     <h2 className="mb-3 text-lg font-bold text-slate-800">{title}</h2>
-    {!payments.length ? <p className="rounded-xl border border-dashed p-5 text-sm text-slate-500">Nessun pagamento da saldare.</p> : <PaymentTable data={payments} onMarkPaid={onMarkPaid} act={act} />}
+    {!payments.length ? <p className="rounded-xl border border-dashed p-5 text-sm text-slate-500">Nessun pagamento da saldare.</p> : <PaymentTable data={payments} onMarkPaid={onMarkPaid} onEdit={onEdit} act={act} />}
   </section>;
 }
 
-function PaymentTable({ data, onMarkPaid, act }) {
+function PaymentTable({ data, onMarkPaid, onEdit, act }) {
   return (
         <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm">
           <Table data-testid="payments-table">
@@ -200,6 +242,7 @@ function PaymentTable({ data, onMarkPaid, act }) {
                         <RotateCcw className="mr-1.5 h-3.5 w-3.5" />Annulla
                       </Button>
                     )}
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(p)} aria-label="Modifica pagamento" data-testid={`edit-payment-${p.id}`}><Pencil className="h-4 w-4" /></Button>
                     <ConfirmDialog testId={`delete-payment-${p.id}`} title="Eliminare il pagamento?" onConfirm={() => act(() => api.delete(`/payments/${p.id}`), "Pagamento eliminato")}
                       trigger={<Button size="icon" variant="ghost" className="h-8 w-8 text-rose-600" data-testid={`delete-payment-btn-${p.id}`}><Trash2 className="h-4 w-4" /></Button>} />
                   </TableCell>

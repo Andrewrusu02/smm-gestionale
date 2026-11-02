@@ -16,7 +16,7 @@ export default function QuoteFormDialog({ open, onOpenChange, quote, clients, on
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
-    if (open) setForm(quote ? { ...quote, client_id: String(quote.client_id), tax_rate: String(quote.tax_rate), items: quote.items.map((i) => ({ ...i, quantity: String(i.quantity), unit_price: String(i.unit_price) })) } : EMPTY);
+    if (open) setForm(quote ? { ...quote, delivery_date: quote.delivery_date || "", validity_date: quote.validity_date || "", notes: quote.notes || "", client_id: String(quote.client_id), tax_rate: String(quote.tax_rate), items: quote.items.map((i) => ({ ...i, quantity: String(i.quantity), unit_price: String(i.unit_price) })) } : EMPTY);
   }, [open, quote]);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const setItem = (index, key) => (e) => setForm((f) => ({ ...f, items: f.items.map((item, i) => i === index ? { ...item, [key]: e.target.value } : item) }));

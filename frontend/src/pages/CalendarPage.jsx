@@ -110,7 +110,8 @@ export default function CalendarPage() {
   const byDay = (d) => [
     ...(posts || []).filter((p) => showCat(categoryOf(p.content_type)) && isSameDay(parseDate(p.scheduled_at), d)).map((p) => ({ kind: "post", at: p.scheduled_at, item: p })),
     ...(showMeetings ? (meetings || []).filter((m) => m.meeting_at && isSameDay(parseDate(m.meeting_at), d)).map((m) => ({ kind: "meeting", at: m.meeting_at, item: m })) : []),
-    ...(tasks || []).filter((t) => (t.start_date || t.due_date) && isSameDay(parseDate(t.start_date || t.due_date), d)).map((t) => ({ kind: "task", at: `${t.start_date || t.due_date}T00:00:00`, item: t })),
+    // I task generati dai contenuti sono già visibili come contenuto: non duplicarli.
+    ...(tasks || []).filter((t) => !t.post_id && (t.start_date || t.due_date) && isSameDay(parseDate(t.start_date || t.due_date), d)).map((t) => ({ kind: "task", at: `${t.start_date || t.due_date}T00:00:00`, item: t })),
   ].sort((a, b) => a.at.localeCompare(b.at));
   const openMeeting = (m) => setLeadDialog({ open: true, lead: m, date: null });
   const move = (dir) => setCursor((c) => (view === "month" ? addMonths(c, dir) : addWeeks(c, dir)));
@@ -191,7 +192,7 @@ export default function CalendarPage() {
         </div>
       </div>
       <PostFormDialog open={dialog.open} onOpenChange={(o) => setDialog((s) => ({ ...s, open: o }))} post={dialog.post} defaultDate={dialog.date}
-        clients={clients || []} isAdmin={isAdmin} onSaved={reload} />
+        clients={clients || []} isAdmin={isAdmin} onSaved={() => { reload(); reloadTasks(); }} />
       {isAdmin && <LeadFormDialog open={leadDialog.open} onOpenChange={(o) => setLeadDialog((s) => ({ ...s, open: o }))} lead={leadDialog.lead} defaultDate={leadDialog.date} onSaved={reloadMeetings} />}
     </div>
   );

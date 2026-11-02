@@ -31,9 +31,8 @@ function ClientCard({ c, onOpen }) {
       ) : (
         <div className="space-y-2 text-sm">
           <p className="line-clamp-2 text-slate-600">{c.notes || "Anagrafica cliente senza abbonamento attivo."}</p>
-          <div className="flex items-center justify-between pt-2">
-            <span className="font-num text-lg font-bold text-amber-700">Saldo {eur(c.balance)}</span>
-            <Chip className="border-slate-200 bg-slate-50 text-slate-600">{c.open_tasks} task aperti</Chip>
+          <div className="pt-2">
+            <span className={cn("font-num text-lg font-bold", c.balance ? "text-amber-700" : "text-slate-400")}>{c.balance ? `Da incassare ${eur(c.balance)}` : "Nessun importo da incassare"}</span>
           </div>
         </div>
       )}
@@ -55,8 +54,11 @@ export default function Clients() {
 
   const filtered = useMemo(() => (data || []).filter((c) =>
     (tab === "tutti" || (tab === "abbonamento" && c.package)) && c.name.toLowerCase().includes(q.toLowerCase())), [data, tab, q]);
-  const activeClients = filtered.filter((c) => (Number(c.balance) || 0) !== 0);
-  const inactiveClients = filtered.filter((c) => (Number(c.balance) || 0) === 0);
+  // Attivo = cliente non disattivato con un abbonamento, lavori aperti o soldi da incassare.
+  // Prima bastava aver saldato tutto per finire tra i "non attivi", anche con un abbonamento in corso.
+  const isActive = (c) => c.active && (Boolean(c.package) || c.open_tasks > 0 || (Number(c.balance) || 0) !== 0);
+  const activeClients = filtered.filter(isActive);
+  const inactiveClients = filtered.filter((c) => !isActive(c));
   const renderCards = (items) => (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
       {items.map((c) => <ClientCard key={c.id} c={c} onOpen={() => navigate(`/clienti/${c.id}`)} />)}

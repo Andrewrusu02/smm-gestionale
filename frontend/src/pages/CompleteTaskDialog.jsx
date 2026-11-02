@@ -13,7 +13,8 @@ export default function CompleteTaskDialog({ task, open, onOpenChange, users, on
   const [form, setForm] = useState({ completed_by: "", completed_at: todayISO(), notes: "", client_revenue: "", worker_expense: "" });
   const [saving, setSaving] = useState(false);
   useEffect(() => {
-    if (open) setForm({ completed_by: "", completed_at: todayISO(), notes: "", client_revenue: task?.price_charged_to_client ?? "", worker_expense: "" });
+    // Di default il lavoro va a chi ha il task in carico (prima finiva a chi cliccava "Completa").
+    if (open) setForm({ completed_by: task?.assignee_id ? String(task.assignee_id) : "", completed_at: todayISO(), notes: "", client_revenue: task?.price_charged_to_client ?? "", worker_expense: "" });
   }, [open, task]);
   const set = (key) => (event) => setForm((value) => ({ ...value, [key]: event.target.value }));
   const submit = async (event) => {
@@ -50,6 +51,9 @@ export default function CompleteTaskDialog({ task, open, onOpenChange, users, on
             <Field label="Entrata cliente (€)" hint="Precompilata dal prezzo del task"><Input type="number" min="0" step="0.01" value={form.client_revenue} onChange={set("client_revenue")} /></Field>
             <Field label="Tuo compenso / Spesa operatore (€) *" hint="Costo riconosciuto al collaboratore per questo lavoro"><Input required type="number" min="0" step="0.01" value={form.worker_expense} onChange={set("worker_expense")} /></Field>
           </div>
+          {form.worker_expense !== "" && Number(form.worker_expense) === 0 && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">Compenso a 0 €: il lavoro risulterà senza costo per il team. Lascialo così solo se il collaboratore non va pagato.</p>
+          )}
           <Field label="Note"><Textarea value={form.notes} onChange={set("notes")} /></Field>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>

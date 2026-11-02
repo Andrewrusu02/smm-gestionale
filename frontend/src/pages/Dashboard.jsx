@@ -123,7 +123,7 @@ export default function Dashboard() {
   const [period, setPeriod] = useState(currentPeriod);
   const [selectedYear, selectedMonth] = period.split("-");
   const { data, loading } = useApi(`/dashboard?months=6&year=${selectedYear}&month=${selectedMonth}`);
-  if (loading || !data) return <Loading />;
+  if (!data) return <Loading />;
   const k = data.kpi;
   return (
     <div data-testid="admin-dashboard">
@@ -137,17 +137,17 @@ export default function Dashboard() {
         </div>}
       />
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatCard label="Entrate totali" value={eur(data.financial_stats?.entrate_totali)} hint="Prezzi fatturati ai clienti" icon={TrendingUp} tone="emerald" testId="financial-total-revenue" />
-        <StatCard label="Spese totali" value={eur(data.financial_stats?.spese_totali)} hint="Compensi registrati al team" icon={TrendingDown} tone="rose" testId="financial-total-expenses" className="rise-1" />
-        <StatCard label="Utile netto" value={eur(data.financial_stats?.utile_netto)} hint="Entrate − spese" icon={PiggyBank} tone="indigo" testId="financial-net-profit" className="rise-2" />
+        <StatCard label="Entrate da sempre" value={eur(data.financial_stats?.entrate_totali)} hint="Valore di tutti i lavori conclusi" icon={TrendingUp} tone="emerald" testId="financial-total-revenue" />
+        <StatCard label="Spese da sempre" value={eur(data.financial_stats?.spese_totali)} hint="Compensi registrati al team" icon={TrendingDown} tone="rose" testId="financial-total-expenses" className="rise-1" />
+        <StatCard label="Utile da sempre" value={eur(data.financial_stats?.utile_netto)} hint="Entrate − spese" icon={PiggyBank} tone="indigo" testId="financial-net-profit" className="rise-2" />
       </div>
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <div className="relative">
-          <StatCard label={`Entrate di ${periodLabel(period, true)}`} value={eur(k.entrate_mese)} hint="Pagamenti saldati nel periodo" icon={TrendingUp} tone="emerald" testId="kpi-entrate" />
+          <StatCard label={`Fatturato di ${periodLabel(period, true)}`} value={eur(k.fatturato_mese)} hint={`Incassato nel mese: ${eur(k.incassato_mese)}`} icon={TrendingUp} tone="emerald" testId="kpi-entrate" />
           {loading && <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/80"><span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" aria-label="Aggiornamento entrate" /></div>}
         </div>
-        <StatCard label="Spese del mese" value={eur(k.spese_mese)} hint="Costi da log lavori" icon={TrendingDown} tone="rose" testId="kpi-spese" className="rise-1" />
-        <StatCard label="Utile netto" value={eur(k.utile_mese)} hint="Entrate − spese" icon={PiggyBank} tone="indigo" testId="kpi-utile" className="rise-2" />
+        <StatCard label="Spese del mese" value={eur(k.spese_mese)} hint="Compensi dei lavori del mese" icon={TrendingDown} tone="rose" testId="kpi-spese" className="rise-1" />
+        <StatCard label="Utile del mese" value={eur(k.utile_mese)} hint="Fatturato − spese del mese" icon={PiggyBank} tone="indigo" testId="kpi-utile" className="rise-2" />
         <StatCard label="Valore abbonamenti attivi" value={eur(k.mrr)} hint={`${k.abbonamenti_attivi} abbonamenti attivi`} icon={Banknote} tone="slate" testId="kpi-mrr" className="rise-3" />
         <StatCard label="Pagamenti in ritardo" value={k.ritardi_count} hint={eur(k.ritardi_importo)} icon={AlertTriangle} tone={k.ritardi_count ? "rose" : "slate"} testId="kpi-ritardi" className="rise-4" />
       </div>

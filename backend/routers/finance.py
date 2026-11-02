@@ -491,15 +491,17 @@ def dashboard(months: int = 6, month: Optional[int] = None, year: Optional[int] 
     } for u in db.query(User).filter(User.active.is_(True)).all()],
         key=lambda x: (x["completed_month"], x["completed_total"]), reverse=True)
 
-    overdue = db.query(Payment).filter(Payment.status == "in_ritardo").order_by(Payment.due_date).all()
-    upcoming = db.query(Payment).filter(Payment.status == "in_attesa", Payment.due_date <= date.today() + timedelta(days=10)) \
+    overdue = db.query(Payment).filter(Payment.status == "in_ritardo", Payment.amount > 0).order_by(Payment.due_date).all()
+    upcoming = db.query(Payment).filter(Payment.status == "in_attesa", Payment.amount > 0,
+                                        Payment.due_date <= date.today() + timedelta(days=10)) \
         .order_by(Payment.due_date).all()
     cur = series[-1]
     return {
         "series": series,
         "kpi": {
             "entrate_mese": cur["incassato"], "fatturato_mese": cur["entrate"],
-            "spese_mese": cur["spese"], "utile_mese": round(cur["incassato"] - cur["spese"], 2),
+            # Utile per competenza: stessa formula del grafico (fatturato del mese − compensi del mese).
+            "spese_mese": cur["spese"], "utile_mese": cur["utile"],
             "incassato_mese": cur["incassato"], "mrr": mrr,
             "periodo_selezionato": current,
             "clienti_attivi": len(active), "abbonamenti_attivi": sum(d["value"] for d in dist),
@@ -519,22 +521,28 @@ def dashboard(months: int = 6, month: Optional[int] = None, year: Optional[int] 
     }
 
 
+def _eur(value: float) -> str:
+    """Importo in formato italiano: € 1.234,50"""
+    return "€ " + f"{value or 0:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 @router.get("/notifications")
 def notifications(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     today = date.today()
     items = []
     if user.role == "admin":
         refresh_payment_statuses(db)
-        for p in db.query(Payment).filter(Payment.status == "in_ritardo").order_by(Payment.due_date).limit(10):
+        for p in db.query(Payment).filter(Payment.status == "in_ritardo", Payment.amount > 0).order_by(Payment.due_date).limit(10):
             days = (today - p.due_date).days
             items.append({"id": f"pay-late-{p.id}", "severity": "high", "link": "/pagamenti",
                           "title": f"Pagamento in ritardo: {p.client.name}",
-                          "message": f"€ {p.amount:,.2f} scaduto da {days} giorn{'o' if days == 1 else 'i'}"})
-        for p in db.query(Payment).filter(Payment.status == "in_attesa", Payment.due_date <= today + timedelta(days=5)) \
+                          "message": f"{_eur(p.amount)} scaduto da {days} giorn{'o' if days == 1 else 'i'}"})
+        for p in db.query(Payment).filter(Payment.status == "in_attesa", Payment.amount > 0,
+                                          Payment.due_date <= today + timedelta(days=5)) \
                 .order_by(Payment.due_date).limit(10):
             items.append({"id": f"pay-due-{p.id}", "severity": "medium", "link": "/pagamenti",
                           "title": f"Scadenza in arrivo: {p.client.name}",
-                          "message": f"€ {p.amount:,.2f} in scadenza il {p.due_date.strftime('%d/%m/%Y')}"})
+                          "message": f"{_eur(p.amount)} in scadenza il {p.due_date.strftime('%d/%m/%Y')}"})
         err = get_setting(db, "google_last_error")
         for c in db.query(Client).filter(Client.package.isnot(None), Client.active.is_(True)).all():
             usage = client_usage(db, c)

@@ -67,7 +67,7 @@ export default function Tasks() {
   const [over, setOver] = useState(null);
 
   const visible = useMemo(() => (tasks || []).filter((t) =>
-    t.title.toLowerCase().includes(filter.q.toLowerCase()) &&
+    `${t.title} ${t.client_name || ""}`.toLowerCase().includes(filter.q.toLowerCase()) &&
     (!filter.client || String(t.client_id) === filter.client) &&
     (filter.scope === "tutti" || (filter.scope === "miei" ? t.assignee_id === user.id : !t.assignee_id))), [tasks, filter, user.id]);
 
@@ -104,7 +104,7 @@ export default function Tasks() {
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center">
         <div className="relative md:w-72">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input placeholder="Cerca task..." value={filter.q} onChange={(e) => setFilter({ ...filter, q: e.target.value })} className="bg-white pl-9" data-testid="tasks-search-input" />
+          <Input placeholder="Cerca task o cliente..." value={filter.q} onChange={(e) => setFilter({ ...filter, q: e.target.value })} className="bg-white pl-9" data-testid="tasks-search-input" />
         </div>
         <NativeSelect value={filter.client} onChange={(e) => setFilter({ ...filter, client: e.target.value })} className="md:w-52" data-testid="tasks-client-filter">
           <option value="">Tutti i clienti</option>

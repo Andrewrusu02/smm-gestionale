@@ -153,6 +153,7 @@ def delete_post(post_id: int, bg: BackgroundTasks, _: User = Depends(require_adm
     event_id, t = p.google_event_id, p.task
     if t and t.status != "completato":
         db.query(WorkLog).filter(WorkLog.task_id == t.id).delete(synchronize_session=False)
+        _drop_task_payments(db, t)
         db.delete(t)
     elif t:
         t.post_id = None
@@ -181,6 +182,15 @@ def list_tasks(status: Optional[str] = None, client_id: Optional[int] = None, as
         q = q.filter(Task.assignee_id.is_(None))
     tasks = q.order_by(Task.due_date.is_(None), Task.due_date, Task.id.desc()).all()
     return [task_out(t) for t in tasks]
+
+
+def _drop_task_payments(db, t: Task):
+    """Prima di eliminare un task: le rate non incassate spariscono, quelle incassate restano senza task."""
+    for payment in list(t.payments):
+        if payment.status == "saldato":
+            payment.task_id = None
+        else:
+            db.delete(payment)
 
 
 def _check_assignee(db, user: User, assignee_id):
@@ -264,6 +274,12 @@ def update_task(task_id: int, body: TaskPatch, user: User = Depends(get_current_
         else:
             for payment in unpaid:
                 db.delete(payment)
+    if "due_date" in data and t.due_date:
+        # La scadenza del pagamento segue quella del lavoro finché non è incassato.
+        for payment in t.payments:
+            if payment.status != "saldato" and payment.kind == "single_job":
+                payment.due_date = t.due_date
+                payment.period = t.due_date.strftime("%Y-%m")
     if new_status:
         apply_task_status(t, new_status)
     db.commit()
@@ -278,6 +294,7 @@ def delete_task(task_id: int, user: User = Depends(get_current_user), db: Sessio
     if user.role != "admin" and t.created_by != user.id:
         raise HTTPException(status_code=403, detail="Solo l'amministratore o chi ha creato il task può eliminarlo")
     db.query(WorkLog).filter(WorkLog.task_id == t.id).update({"task_id": None})
+    _drop_task_payments(db, t)
     db.delete(t)
     db.commit()
     return {"ok": True}

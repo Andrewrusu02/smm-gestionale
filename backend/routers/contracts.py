@@ -88,7 +88,7 @@ def create_contract(body: ContractIn, user: User = Depends(require_admin), db: S
         )
         db.add(task)
         db.flush()
-        if body.price is not None:
+        if body.price and body.price > 0:  # niente rate da 0 € che finiscono "in ritardo"
             db.add(Payment(
                 client_id=client.id, task_id=task.id, kind="single_job",
                 description=f"Lavoro: {body.title}", amount=body.price,

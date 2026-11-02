@@ -117,7 +117,9 @@ def refresh_payment_statuses(db):
         if client and client.start_date and payment.period:
             year, month = map(int, payment.period.split("-"))
             payment.due_date = date(year, month, calendar.monthrange(year, month)[1])
-    db.query(Payment).filter(Payment.paid_date.is_(None), Payment.due_date < today, Payment.status != "in_ritardo") \
+    # I pagamenti già saldati non devono mai tornare "in ritardo", anche se manca la data di pagamento.
+    db.query(Payment).filter(Payment.paid_date.is_(None), Payment.due_date < today,
+                             Payment.status.notin_(["in_ritardo", "saldato"])) \
         .update({"status": "in_ritardo"}, synchronize_session=False)
     db.query(Payment).filter(Payment.paid_date.is_(None), Payment.due_date >= today, Payment.status == "in_ritardo") \
         .update({"status": "in_attesa"}, synchronize_session=False)
@@ -176,8 +178,15 @@ def credit_check(db, client: Client, content_type: str, exclude_post_id=None):
                               Post.cycle_number == (client.cycle_number or 1))
     if exclude_post_id:
         q = q.filter(Post.id != exclude_post_id)
+    # Stesso conteggio di client_usage: anche i task "inclusi nell'abbonamento" consumano crediti.
+    task_used = db.query(func.count(Task.id)).filter(
+        Task.client_id == client.id,
+        Task.cycle_number == (client.cycle_number or 1),
+        Task.category_service == content_type,
+        Task.subscription_included.is_(True),
+    ).scalar() or 0
     limit = pkg["limits"][content_type]
-    used = q.count()
+    used = q.count() + task_used
     return {"limit": limit, "used": used, "remaining": limit - used}
 
 

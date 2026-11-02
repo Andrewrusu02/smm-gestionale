@@ -107,7 +107,7 @@ export default function ClientFormDialog({ open, onOpenChange, client, prefill, 
               <Field label="Pacchetto *"><PackagePicker packages={packages} form={form} set={set} /></Field>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Inizio abbonamento"><Input type="date" value={form.start_date} onChange={set("start_date")} data-testid="client-start-input" /></Field>
-                <Field label="Giorno scadenza mensile" hint="Giorno del mese (1-28) in cui scade la rata"><Input type="number" min={1} max={28} value={form.billing_day} onChange={set("billing_day")} data-testid="client-billing-day-input" /></Field>
+                <p className="self-end rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">La rata mensile scade l'ultimo giorno di ogni mese e viene creata in automatico.</p>
               </div>
             </div>
           )}

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const TOKEN_KEY = "smm_token";
 
@@ -34,17 +34,22 @@ export function useApi(path) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const lastRequest = useRef(0);
   const load = useCallback(async () => {
     if (!path) return;
+    // Se cambi filtro/periodo velocemente, solo l'ultima richiesta aggiorna la pagina.
+    const requestId = ++lastRequest.current;
     setLoading(true);
     try {
       const r = await api.get(path);
+      if (requestId !== lastRequest.current) return;
       setData(r.data);
       setError(null);
     } catch (e) {
+      if (requestId !== lastRequest.current) return;
       setError(errMsg(e));
     } finally {
-      setLoading(false);
+      if (requestId === lastRequest.current) setLoading(false);
     }
   }, [path]);
   useEffect(() => {

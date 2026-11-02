@@ -34,9 +34,11 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
   const canDelete = task && (isAdmin || task.created_by === user.id);
   const selectedClient = (clients || []).find((c) => String(c.id) === String(form.client_id));
   const selectedUsage = selectedClient?.usage?.find((u) => u.type === form.category_service);
+  // Un task esistente mantiene la sua natura: il backend non la ricalcola in modifica.
+  // Prima, modificando un Lavoro Extra dopo un rinnovo, il prezzo veniva azzerato e il pagamento cancellato.
+  const fromCalendar = Boolean(task?.post_id);
   const isIncluded = task
-    ? Boolean(task.subscription_included && task.category_service === form.category_service) ||
-      Boolean(selectedClient?.active_subscription && selectedUsage?.remaining > 0)
+    ? Boolean(task.subscription_included) || fromCalendar
     : Boolean(selectedClient?.active_subscription && selectedUsage?.remaining > 0);
 
   const submit = async (e) => {
@@ -44,7 +46,7 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
     setSaving(true);
     const body = {
       title: form.title, description: form.description || null, client_id: form.client_id ? Number(form.client_id) : null,
-      category_service: form.category_service,
+      category_service: form.category_service || null,
       status: form.status, priority: form.priority, assignee_id: form.assignee_id ? Number(form.assignee_id) : null,
       start_date: form.start_date || null, due_date: form.due_date || null,
       price_charged_to_client: isIncluded ? 0 : Number(form.price_charged_to_client),
@@ -88,7 +90,7 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
               </NativeSelect>
             </Field>
             <Field label="CATEGORIA SERVIZIO *">
-              <NativeSelect required disabled={Boolean(task?.subscription_included)} value={form.category_service} onChange={set("category_service")} data-testid="task-service-category-select">
+              <NativeSelect required={!fromCalendar} disabled={Boolean(task?.subscription_included)} value={form.category_service} onChange={set("category_service")} data-testid="task-service-category-select">
                 <option value="">Seleziona categoria</option>
                 {SERVICE_CATEGORIES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               </NativeSelect>
@@ -98,16 +100,18 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
             <Field label="Prezzo pattuito col Cliente (€)" hint="Entrata da incassare; non è il compenso del collaboratore">
               <Input type="number" min={0} step="0.01" required={!isIncluded} disabled={isIncluded} value={isIncluded ? 0 : form.price_charged_to_client} onChange={set("price_charged_to_client")} data-testid="task-price-input" />
             </Field>
-            {form.category_service && (
+            {(form.category_service || fromCalendar) && (
               <p className={`col-span-2 rounded-lg px-3 py-2 text-sm font-medium ${isIncluded ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`} data-testid="task-billing-mode">
-                {isIncluded
+                {fromCalendar
+                  ? "✓ Contenuto del piano editoriale: il credito è già scalato dal calendario."
+                  : isIncluded
                   ? `✓ Incluso nell'abbonamento (verrà scalato 1 credito da ${SERVICE_CATEGORIES.find(([key]) => key === form.category_service)?.[1] ?? form.category_service}).`
                   : "⚠ Nessun abbonamento attivo o crediti esauriti per questa categoria. Verrà fatturato come Lavoro Extra."}
               </p>
             )}
             <Field label="Stato">
               <NativeSelect value={form.status} onChange={set("status")} data-testid="task-status-select">
-                {TASK_STATUSES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                {TASK_STATUSES.filter((s) => s.key !== "completato").map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
               </NativeSelect>
             </Field>
             <Field label="Priorità">

@@ -119,13 +119,20 @@ def quote_pdf(quote_id: int, _: User = Depends(require_admin), db: Session = Dep
     styles = getSampleStyleSheet()
     story = [
         Paragraph(f"Preventivo {quote.number}", styles["Title"]),
-        Paragraph(f"<b>Cliente:</b> {escape(quote.client.name)}<br/><b>Data:</b> {quote.issue_date:%d/%m/%Y}",
-                  styles["Normal"]),
+        Paragraph("<br/>".join(filter(None, [
+            f"<b>Cliente:</b> {escape(quote.client.name)}",
+            f"<b>Data:</b> {quote.issue_date:%d/%m/%Y}",
+            f"<b>Consegna prevista:</b> {quote.delivery_date:%d/%m/%Y}" if quote.delivery_date else None,
+            f"<b>Valido fino al:</b> {quote.validity_date:%d/%m/%Y}" if quote.validity_date else None,
+        ])), styles["Normal"]),
         Spacer(1, 12),
     ]
     rows = [["Servizio", "Qtà", "Prezzo unitario", "Totale"]]
     rows.extend([[Paragraph(escape(item.description), styles["Normal"]), f"{item.quantity:g}", f"€ {item.unit_price:.2f}",
                   f"€ {item.total:.2f}"] for item in quote.items])
+    if quote.tax_rate:
+        rows.append(["", "", "Imponibile", f"€ {quote.subtotal:.2f}"])
+        rows.append(["", "", f"IVA {quote.tax_rate:g}%", f"€ {quote.total - quote.subtotal:.2f}"])
     rows.append(["", "", "Totale", f"€ {quote.total:.2f}"])
     table = Table(rows, colWidths=[78 * mm, 18 * mm, 36 * mm, 36 * mm], repeatRows=1)
     table.setStyle(TableStyle([
@@ -139,7 +146,7 @@ def quote_pdf(quote_id: int, _: User = Depends(require_admin), db: Session = Dep
     ]))
     story.append(table)
     if quote.notes:
-        story.extend([Spacer(1, 12), Paragraph(f"<b>Note:</b><br/>{escape(quote.notes)}", styles["Normal"])])
+        story.extend([Spacer(1, 12), Paragraph("<b>Note:</b><br/>" + escape(quote.notes).replace("\n", "<br/>"), styles["Normal"])])
     document.build(story)
     buffer.seek(0)
     return StreamingResponse(buffer, media_type="application/pdf",
