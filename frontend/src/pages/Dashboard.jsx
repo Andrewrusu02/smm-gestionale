@@ -8,6 +8,7 @@ import { Chip, Loading, PageHeader, Panel, StatCard } from "@/components/common"
 import { useApi } from "@/lib/api";
 import { currentPeriod, eur, fmtDate, PACKAGE_STYLE, periodLabel } from "@/lib/constants";
 import { useAuth } from "@/context/AuthContext";
+import ForecastPanel from "@/components/ForecastPanel";
 import { Input } from "@/components/ui/input";
 
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12 };
@@ -157,6 +158,7 @@ export default function Dashboard() {
         <StatCard label="Pagamenti in ritardo" value={k.ritardi_count} hint={eur(k.ritardi_importo)} icon={AlertTriangle} tone={k.ritardi_count ? "rose" : "slate"} testId="kpi-ritardi" className="rise-4" />
       </div>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <ForecastPanel />
         <Panel title="Entrate vs Spese" className="xl:col-span-2" testId="chart-revenue"><RevenueChart series={data.series} /></Panel>
         <Panel title="Clienti per pacchetto" testId="chart-packages"><PackagePie data={data.package_distribution} /></Panel>
         <Panel title="Utile netto mensile" className="xl:col-span-2" testId="chart-profit"><ProfitChart series={data.series} /></Panel>

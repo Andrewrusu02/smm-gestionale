@@ -15,15 +15,18 @@ import audit  # noqa: E402,F401  (registra il listener del registro modifiche)
 from security import seed_admin  # noqa: E402
 from services import backfill_cycles, refresh_payment_statuses  # noqa: E402
 from google_sync import sync_loop  # noqa: E402
-from routers import (audit_log, auth_users, clients, contracts, editorial, expenses_api, finance, integrations, leads,  # noqa: E402
-                     quotes, scripts, search, system, trash_bin)
+from routers import (  # noqa: E402
+    audit_log, auth_users, clients, contracts, editorial, expenses_api, finance, forecast, integrations, leads, quotes,
+    scripts, search, system, trash_bin,
+)
 from trash import purge_loop  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 app = FastAPI(title="SMM Agency Gestionale")
-for r in (audit_log, auth_users, clients, contracts, editorial, expenses_api, finance, integrations, leads, quotes, scripts, search, system,
-          trash_bin):
+ROUTERS = (audit_log, auth_users, clients, contracts, editorial, expenses_api, finance, forecast, integrations, leads,
+           quotes, scripts, search, system, trash_bin)
+for r in ROUTERS:
     app.include_router(r.router, prefix="/api")
 
 
