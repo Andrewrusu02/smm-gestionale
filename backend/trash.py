@@ -116,7 +116,7 @@ def restore_batch(db, batch):
 
 def _purge_objects(db, items):
     """Eliminazione definitiva: stacca i riferimenti rimasti e cancella le righe."""
-    from models import ClientPriceList, Idea, Lead, SubscriptionHistory
+    from models import ClientHashtagSet, ClientPriceList, Idea, Lead, SubscriptionHistory
     order = [WorkLog, Payment, Quote, Task, Post, VideoScript, Contract, Client]
     with include_deleted(db):
         for cls in order:
@@ -142,8 +142,8 @@ def _purge_objects(db, items):
                         # Elementi del cliente ripristinati a parte: il cliente non si può cancellare del tutto.
                         log.warning("Cliente %s non eliminato: ha ancora %d elementi attivi", obj.id, remaining)
                         continue
-                    # Dati che vivono solo con il cliente: idee, listino personalizzato, storico abbonamento.
-                    for extra in (Idea, ClientPriceList, SubscriptionHistory):
+                    # Dati che vivono solo con il cliente: idee, listino, set di hashtag, storico abbonamento.
+                    for extra in (Idea, ClientPriceList, ClientHashtagSet, SubscriptionHistory):
                         db.query(extra).filter(extra.client_id == obj.id).delete(synchronize_session=False)
                     db.expire(obj)
                 db.delete(obj)

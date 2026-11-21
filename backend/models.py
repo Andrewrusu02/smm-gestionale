@@ -119,6 +119,8 @@ class Post(SoftDelete, Base):
     status = Column(String(20), default="programmato")  # programmato | consegnato
     cycle_number = Column(Integer)
     google_event_id = Column(String(255), index=True)
+    caption = Column(Text)
+    hashtags = Column(Text)
     location = Column(String(255))  # shot list delle sessioni
     people = Column(Text)
     video_script_id = Column(Integer, ForeignKey("video_scripts.id"))
@@ -377,3 +379,13 @@ class Idea(Base):
 
     client = relationship("Client")
     video_script = relationship("VideoScript")
+
+
+class ClientHashtagSet(Base):
+    """Hashtag ricorrenti di un cliente, da aggiungere con un clic ai contenuti."""
+    __tablename__ = "client_hashtag_sets"
+    id = Column(Integer, primary_key=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False, index=True)
+    name = Column(String(80), nullable=False)
+    hashtags = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=utcnow)

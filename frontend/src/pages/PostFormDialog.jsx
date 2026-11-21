@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Clapperboard, Loader2, Trash2, Wand2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import CaptionFields, { CaptionView } from "@/components/CaptionFields";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,6 +33,7 @@ function PostView({ post }) {
       <p className="text-lg font-bold">{post.title}</p>
       <p className="text-slate-500">{post.client_name} · {fmtDateTime(post.scheduled_at)} · {post.duration_minutes} min</p>
       {post.description && <p className="whitespace-pre-line rounded-lg bg-slate-50 p-3">{post.description}</p>}
+      <CaptionView caption={post.caption} hashtags={post.hashtags} />
       {post.task_status && <p className="text-xs text-slate-500">Task: <b>{TASK_STATUS_MAP[post.task_status].label}</b> · {post.assignee_name || "non assegnato"}</p>}
       <ShotListLink post={post} />
     </div>
@@ -45,7 +47,7 @@ export default function PostFormDialog({ open, onOpenChange, post, defaultDate, 
   useEffect(() => {
     if (!open) return;
     setForm(post
-      ? { ...post, scheduled_at: post.scheduled_at.slice(0, 16), description: post.description || "" }
+      ? { ...post, scheduled_at: post.scheduled_at.slice(0, 16), description: post.description || "", caption: post.caption || "", hashtags: post.hashtags || "" }
       : { client_id: clients[0]?.id || "", title: "", content_type: "reel", duration_minutes: 60, description: "",
           scheduled_at: `${format(defaultDate || new Date(), "yyyy-MM-dd")}T10:00` });
   }, [open, post, defaultDate, clients]);
@@ -63,7 +65,8 @@ export default function PostFormDialog({ open, onOpenChange, post, defaultDate, 
   const send = async (force = false) => {
     setSaving(true);
     const body = { client_id: Number(form.client_id), title: form.title, content_type: form.content_type,
-      scheduled_at: form.scheduled_at, duration_minutes: Number(form.duration_minutes) || 60, description: form.description || null };
+      scheduled_at: form.scheduled_at, duration_minutes: Number(form.duration_minutes) || 60, description: form.description || null,
+      caption: form.caption || "", hashtags: form.hashtags || "" };
     const q = force ? "?force=true" : "";
     try {
       if (post) await api.put(`/posts/${post.id}${q}`, body);
@@ -126,6 +129,7 @@ export default function PostFormDialog({ open, onOpenChange, post, defaultDate, 
               <Field label="Durata (min)"><Input type="number" min={5} value={form.duration_minutes || 60} onChange={set("duration_minutes")} data-testid="post-duration-input" /></Field>
             </div>
             <Field label="Note / brief"><Textarea value={form.description || ""} onChange={set("description")} data-testid="post-description-input" /></Field>
+            <CaptionFields clientId={form.client_id} caption={form.caption} hashtags={form.hashtags} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} />
             {credits?.tracked && (
               <p data-testid="post-credits-info" className={`rounded-lg px-3 py-2 text-xs font-semibold ${credits.remaining > 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
                 Crediti {CONTENT_TYPES[form.content_type].label}: {Math.max(credits.remaining, 0)}/{credits.limit} rimanenti

@@ -10,8 +10,8 @@ from models import Client, Contract, Payment, Post, Task, User, WorkLog
 from security import get_current_user, require_admin
 from avatars import avatar_url
 from trash import soft_delete
-from services import (CREDITS_EXHAUSTED_MSG, apply_task_status, credit_check, final_price, sync_task_for_post,
-                      task_credit_check)
+from services import (CREDITS_EXHAUSTED_MSG, apply_task_status, credit_check, final_price, normalize_hashtags,
+                      sync_task_for_post, task_credit_check)
 
 router = APIRouter()
 ContentType = Literal["reel", "storia", "carosello", "grafica", "post", "sessione"]
@@ -27,6 +27,19 @@ class PostIn(BaseModel):
     scheduled_at: datetime
     duration_minutes: int = Field(default=60, ge=5, le=1440)
     description: Optional[str] = None
+    # Facoltativi: se non vengono inviati restano com'erano (compatibilità con i client precedenti).
+    caption: Optional[str] = None
+    hashtags: Optional[str] = None
+
+
+POST_OPTIONAL = {"caption", "hashtags"}
+
+
+def _apply_post_extras(p, body):
+    if "caption" in body.model_fields_set:
+        p.caption = (body.caption or "").strip() or None
+    if "hashtags" in body.model_fields_set:
+        p.hashtags = normalize_hashtags(body.hashtags)
 
 
 class TaskIn(BaseModel):
@@ -129,7 +142,9 @@ def list_posts(start: Optional[date] = None, end: Optional[date] = None, client_
 def create_post(body: PostIn, bg: BackgroundTasks, force: bool = False, _: User = Depends(require_admin), db: Session = Depends(get_db)):
     c = _client_or_404(db, body.client_id)
     _check_credits(db, c, body.content_type, force)
-    p = Post(**body.model_dump(exclude={"scheduled_at"}), scheduled_at=_naive(body.scheduled_at), cycle_number=c.cycle_number or 1)
+    p = Post(**body.model_dump(exclude={"scheduled_at", *POST_OPTIONAL}), scheduled_at=_naive(body.scheduled_at),
+             cycle_number=c.cycle_number or 1)
+    _apply_post_extras(p, body)
     db.add(p)
     db.flush()
     sync_task_for_post(db, p, c.name)
@@ -148,8 +163,9 @@ def update_post(post_id: int, body: PostIn, bg: BackgroundTasks, force: bool = F
         _check_credits(db, c, body.content_type, force, p.id)
     if body.client_id != p.client_id:
         p.cycle_number = c.cycle_number or 1
-    for k, v in body.model_dump(exclude={"scheduled_at"}).items():
+    for k, v in body.model_dump(exclude={"scheduled_at", *POST_OPTIONAL}).items():
         setattr(p, k, v)
+    _apply_post_extras(p, body)
     p.scheduled_at = _naive(body.scheduled_at)
     db.flush()
     sync_task_for_post(db, p, c.name)

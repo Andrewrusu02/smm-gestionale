@@ -271,3 +271,16 @@ def track_subscription_change(db, client, old_package, old_price, user=None):
     elif old_price is not None and new_price is not None and round(old_price, 2) != round(new_price, 2):
         record_subscription_event(db, client, "price_change", user, from_package=old_package, from_price=old_price,
                                   from_cycle=client.cycle_number)
+
+
+def normalize_hashtags(value) -> str | None:
+    """'moda, #Estate  saldi' -> '#moda #Estate #saldi' (senza doppioni, ordine mantenuto)."""
+    import re
+    seen, out = set(), []
+    for raw in re.split(r"[\s,;]+", value or ""):
+        tag = raw.strip().lstrip("#")
+        tag = re.sub(r"[^\w]", "", tag, flags=re.UNICODE)
+        if tag and tag.lower() not in seen:
+            seen.add(tag.lower())
+            out.append(f"#{tag}")
+    return " ".join(out) or None
