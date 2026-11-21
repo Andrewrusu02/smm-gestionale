@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from database import get_db
-from models import LoginAttempt, Task, User, WorkLog, utcnow
+from models import LoginAttempt, Task, User, UserAbsence, WorkLog, utcnow
 from security import create_token, get_current_user, hash_password, require_admin, verify_password
 from avatars import avatar_url, remove_avatar_file, resolve_avatar, save_avatar
 from trash import include_deleted
@@ -271,6 +271,7 @@ def delete_user(user_id: int, admin: User = Depends(require_admin), db: Session 
         return {"ok": True, "deactivated": True}
     db.query(Task).filter(Task.assignee_id == u.id).update({"assignee_id": None})
     db.query(Task).filter(Task.created_by == u.id).update({"created_by": None})
+    db.query(UserAbsence).filter(UserAbsence.user_id == u.id).delete(synchronize_session=False)
     db.delete(u)
     db.commit()
     return {"ok": True, "deactivated": False}

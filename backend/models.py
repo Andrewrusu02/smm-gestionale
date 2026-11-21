@@ -389,3 +389,18 @@ class ClientHashtagSet(Base):
     name = Column(String(80), nullable=False)
     hashtags = Column(Text, nullable=False)
     created_at = Column(DateTime, default=utcnow)
+
+
+class UserAbsence(Base):
+    """Ferie, permessi e indisponibilità di un membro del team (date incluse)."""
+    __tablename__ = "user_absences"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    kind = Column(String(20), nullable=False, default="ferie")  # ferie | permesso | indisponibile
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    note = Column(String(255))
+    created_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])

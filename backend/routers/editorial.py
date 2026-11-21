@@ -10,6 +10,7 @@ from models import Client, Contract, Payment, Post, Task, User, WorkLog
 from security import get_current_user, require_admin
 from avatars import avatar_url
 from trash import soft_delete
+from absences import task_availability_warning
 from services import (CREDITS_EXHAUSTED_MSG, apply_task_status, credit_check, final_price, normalize_hashtags,
                       sync_task_for_post, task_credit_check)
 
@@ -259,7 +260,7 @@ def create_task(body: TaskIn, user: User = Depends(get_current_user), db: Sessio
                        due_date=t.due_date or date.today() + timedelta(days=30),
                        period=(t.due_date or date.today()).strftime("%Y-%m"), status="in_attesa"))
     db.commit()
-    return task_out(t)
+    return task_out_checked(db, t)
 
 
 def _price_fields(source: dict, out: dict):
@@ -277,6 +278,13 @@ def _price_fields(source: dict, out: dict):
         price = source.get("price_charged_to_client") or 0
         out["list_price"] = price or None
         out["discount_type"], out["discount_value"] = None, 0
+
+
+def task_out_checked(db, t: Task):
+    """Task con l'eventuale avviso se l'assegnatario è in ferie o non disponibile nel periodo del task."""
+    d = task_out(t)
+    d["availability_warning"] = task_availability_warning(db, t)
+    return d
 
 
 def _task_for_edit(db, task_id, user: User) -> Task:
@@ -334,7 +342,7 @@ def update_task(task_id: int, body: TaskPatch, user: User = Depends(get_current_
     if new_status:
         apply_task_status(t, new_status)
     db.commit()
-    return task_out(t)
+    return task_out_checked(db, t)
 
 
 @router.delete("/tasks/{task_id}")
@@ -361,7 +369,7 @@ def claim_task(task_id: int, user: User = Depends(get_current_user), db: Session
     if t.status == "da_fare":
         t.status = "in_corso"
     db.commit()
-    return task_out(t)
+    return task_out_checked(db, t)
 
 
 @router.post("/tasks/{task_id}/release")
@@ -375,7 +383,7 @@ def release_task(task_id: int, user: User = Depends(get_current_user), db: Sessi
     if t.status == "in_corso":
         t.status = "da_fare"
     db.commit()
-    return task_out(t)
+    return task_out_checked(db, t)
 
 
 @router.get("/me/overview")

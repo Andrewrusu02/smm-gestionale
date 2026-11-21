@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Chip, EmptyState, Field, Loading, NativeSelect, PageHeader, Panel, UserAvatar } from "@/components/common";
 import { ADMIN_NAV, EMPLOYEE_NAV } from "@/components/AppShell";
+import AbsencesPanel from "@/components/AbsencesPanel";
 import { useAuth } from "@/context/AuthContext";
 import { api, downloadFile, errMsg, useApi } from "@/lib/api";
 import { fmtBytes, fmtDateTime } from "@/lib/constants";
@@ -351,12 +352,14 @@ export default function Settings() {
         <TabsList className="mb-6">
           <TabsTrigger value="profilo" data-testid="settings-tab-profilo">Profilo</TabsTrigger>
           <TabsTrigger value="sicurezza" data-testid="settings-tab-sicurezza">Sicurezza</TabsTrigger>
+          <TabsTrigger value="assenze" data-testid="settings-tab-assenze">Ferie e permessi</TabsTrigger>
           {isAdmin && <TabsTrigger value="agenzia" data-testid="settings-tab-agenzia">Agenzia</TabsTrigger>}
           {isAdmin && <TabsTrigger value="integrazioni" data-testid="settings-tab-integrazioni">Integrazioni</TabsTrigger>}
           {isAdmin && <TabsTrigger value="backup" data-testid="settings-tab-backup">Backup</TabsTrigger>}
         </TabsList>
         <TabsContent value="profilo"><ProfileTab /></TabsContent>
         <TabsContent value="sicurezza"><PasswordTab /></TabsContent>
+        <TabsContent value="assenze"><AbsencesPanel /></TabsContent>
         {isAdmin && <TabsContent value="agenzia"><AgencyTab /></TabsContent>}
         {isAdmin && <TabsContent value="integrazioni"><GoogleTab /></TabsContent>}
         {isAdmin && <TabsContent value="backup"><BackupTab /></TabsContent>}

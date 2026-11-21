@@ -35,6 +35,19 @@ function PostPill({ p, onClick, full, draggable, moving }) {
   );
 }
 
+const ABSENCE_LABEL = { ferie: "Ferie", permesso: "Permesso", indisponibile: "Non disp." };
+
+function AbsencePill({ a, full }) {
+  return (
+    <div onClick={(e) => e.stopPropagation()} title={`${a.user_name}: ${a.kind_label}${a.note ? ` · ${a.note}` : ""}`}
+      className="flex w-full items-center gap-1.5 truncate rounded-md border border-dashed border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[11px] font-medium text-teal-700"
+      data-testid={`calendar-absence-${a.id}`}>
+      <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider opacity-80">{ABSENCE_LABEL[a.kind] || a.kind_label}</span>
+      <span className="truncate">{full ? a.user_name : a.user_name.split(" ")[0]}</span>
+    </div>
+  );
+}
+
 function MeetingPill({ m, onClick, full }) {
   return (
     <button onClick={(e) => { e.stopPropagation(); onClick(m); }} data-testid={`calendar-meeting-${m.id}`}
@@ -105,6 +118,7 @@ export default function CalendarPage() {
   const { data: posts, reload, setData: setPosts } = useApi(path);
   const { data: tasks, reload: reloadTasks } = useApi(`/tasks${qs({ client_id: clientId })}`);
   const { data: meetings, reload: reloadMeetings } = useApi(isAdmin ? `/leads?start=${startISO}&end=${endISO}` : null);
+  const { data: absences } = useApi(`/absences?start=${startISO}&end=${endISO}`);
 
   useEffect(() => {
     const h = () => { reload(); reloadTasks(); if (isAdmin) reloadMeetings(); };
@@ -113,6 +127,8 @@ export default function CalendarPage() {
   }, [reload, reloadTasks, reloadMeetings, isAdmin]);
 
   const byDay = (d) => [
+    ...(absences || []).filter((a) => { const day = format(d, "yyyy-MM-dd"); return a.start_date <= day && a.end_date >= day; })
+      .map((a) => ({ kind: "absence", at: "0000", item: a })),
     ...(posts || []).filter((p) => showCat(categoryOf(p.content_type)) && isSameDay(parseDate(p.scheduled_at), d)).map((p) => ({ kind: "post", at: p.scheduled_at, item: p })),
     ...(showMeetings ? (meetings || []).filter((m) => m.meeting_at && isSameDay(parseDate(m.meeting_at), d)).map((m) => ({ kind: "meeting", at: m.meeting_at, item: m })) : []),
     // I task generati dai contenuti sono già visibili come contenuto: non duplicarli.
@@ -218,6 +234,7 @@ export default function CalendarPage() {
                 <div className="space-y-1">
                   {items.slice(0, limit).map((e) => e.kind === "post"
                     ? <PostPill key={`p${e.item.id}`} p={e.item} onClick={openPost} full={view === "week"} draggable={isAdmin} moving={movingId === e.item.id} />
+                    : e.kind === "absence" ? <AbsencePill key={`a${e.item.id}`} a={e.item} full={view === "week"} />
                     : e.kind === "meeting" ? <MeetingPill key={`m${e.item.id}`} m={e.item} onClick={openMeeting} full={view === "week"} /> : <TaskPill key={`t${e.item.id}`} task={e.item} full={view === "week"} />)}
                   {items.length > limit && <p className="px-1 text-[11px] font-semibold text-slate-500">+{items.length - limit} altri</p>}
                 </div>

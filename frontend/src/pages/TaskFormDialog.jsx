@@ -70,6 +70,24 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
     ? Boolean(task.subscription_included) || fromCalendar
     : Boolean(selectedClient?.active_subscription && selectedUsage?.remaining > 0);
 
+  // Avviso se l'assegnatario è in ferie o non disponibile nel periodo del task.
+  const [awayWarning, setAwayWarning] = useState("");
+  useEffect(() => {
+    const start = form.start_date || form.due_date;
+    const end = form.due_date || form.start_date;
+    if (!open || !form.assignee_id || !start) { setAwayWarning(""); return undefined; }
+    let alive = true;
+    const [a, b] = start <= end ? [start, end] : [end, start];
+    api.get("/absences/check", { params: { user_id: form.assignee_id, start: a, end: b } })
+      .then(({ data }) => {
+        if (!alive) return;
+        const x = data[0];
+        setAwayWarning(x ? `${x.user_name} è assente (${x.kind_label.toLowerCase()}${x.start_date === x.end_date ? ` il ${x.start_date.split("-").reverse().join("/")}` : ` dal ${x.start_date.split("-").reverse().join("/")} al ${x.end_date.split("-").reverse().join("/")}`}).` : "");
+      })
+      .catch(() => alive && setAwayWarning(""));
+    return () => { alive = false; };
+  }, [open, form.assignee_id, form.start_date, form.due_date]);
+
   const finalPrice = computeFinalPrice(form.list_price, form.discount_type, form.discount_value);
   const discountError = form.discount_type === "percent" && Number(form.discount_value) > 100
     ? "Lo sconto non può superare il 100%"
@@ -93,9 +111,9 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
       body.discount_value = body.discount_type ? Number(form.discount_value) : 0;
     }
     try {
-      if (task) await api.put(`/tasks/${task.id}`, body);
-      else await api.post("/tasks", body);
+      const { data: saved } = task ? await api.put(`/tasks/${task.id}`, body) : await api.post("/tasks", body);
       toast.success(task ? "Task aggiornato" : "Task creato");
+      if (saved?.availability_warning) toast.warning(saved.availability_warning, { duration: 8000 });
       await onSaved?.();
       onOpenChange(false);
     } catch (err) {
@@ -184,6 +202,11 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
               </NativeSelect>
             </Field>
           </div>
+          {awayWarning && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800" data-testid="task-away-warning">
+              ⚠ {awayWarning} Puoi assegnarlo comunque.
+            </p>
+          )}
           {isAdmin ? (
             <Field label="Assegnatario">
               <NativeSelect value={form.assignee_id} onChange={set("assignee_id")} data-testid="task-assignee-select">
