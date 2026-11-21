@@ -9,6 +9,7 @@ import { Chip, ConfirmDialog, EmptyState, Field, NativeSelect, PageHeader, StatC
 import { api, errMsg, qs, useApi } from "@/lib/api";
 import { eur, fmtDate, PAYMENT_STATUS, todayISO } from "@/lib/constants";
 import { useUrlParam } from "@/lib/useUrlParam";
+import AccountantExportDialog from "@/components/AccountantExportDialog";
 
 function PaidDialog({ payment, onClose, onDone }) {
   const [date, setDate] = useState(todayISO());
@@ -171,6 +172,7 @@ export default function Payments() {
     <div data-testid="payments-page">
       <PageHeader eyebrow="Amministrazione" title="Pagamenti" subtitle="Pagamenti degli abbonamenti e fatture dei lavori singoli. Lo stato In ritardo si aggiorna in automatico dopo la scadenza."
         actions={<>
+          <AccountantExportDialog />
           <Button onClick={() => setInvoice(true)} className="rounded-xl bg-indigo-600 hover:bg-indigo-700" data-testid="add-invoice-button"><Plus className="mr-2 h-4 w-4" />Nuova fattura</Button>
         </>} />
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
