@@ -21,7 +21,7 @@ export function SearchButton({ onClick }) {
     >
       <Search className="h-4 w-4 shrink-0" />
       <span className="hidden truncate sm:inline">Cerca clienti, task, pagamenti…</span>
-      <kbd className="ml-auto hidden rounded border border-slate-200 bg-slate-50 px-1.5 font-num text-[10px] text-slate-500 sm:inline">{isMac ? "⌘" : "Ctrl"} K</kbd>
+      <kbd className="ml-auto hidden whitespace-nowrap rounded border border-slate-200 bg-slate-50 px-1.5 font-num text-[10px] text-slate-500 sm:inline">{isMac ? "⌘" : "Ctrl"} K</kbd>
     </button>
   );
 }
