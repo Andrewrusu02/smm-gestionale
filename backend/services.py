@@ -235,3 +235,39 @@ def final_price(list_price, discount_type=None, discount_value=0) -> float:
             raise ValueError("Lo sconto in euro non può superare il prezzo di listino")
         base -= value
     return round(max(base, 0), 2)
+
+
+SUBSCRIPTION_EVENTS = {
+    "start": "Attivazione", "renewal": "Rinnovo", "package_change": "Cambio pacchetto",
+    "price_change": "Cambio prezzo", "stop": "Fine abbonamento",
+}
+
+
+def record_subscription_event(db, client, event, user=None, from_package=None, from_price=None, from_cycle=None,
+                              notes=None, day=None):
+    from models import SubscriptionHistory
+    pkg = package_for(client)
+    db.add(SubscriptionHistory(
+        client_id=client.id, event=event, date=day or date.today(),
+        from_package=from_package, to_package=client.package if event != "stop" else None,
+        from_price=from_price, to_price=(pkg or {}).get("price") if event != "stop" else None,
+        from_cycle=from_cycle, to_cycle=client.cycle_number if event != "stop" else None,
+        billing_cycle="mensile", notes=notes, source="app", created_by=getattr(user, "id", None),
+    ))
+
+
+def track_subscription_change(db, client, old_package, old_price, user=None):
+    """Dopo una modifica del cliente registra attivazione, fine, cambio pacchetto o di prezzo."""
+    new_pkg = package_for(client)
+    new_price = (new_pkg or {}).get("price")
+    if not old_package and client.package:
+        record_subscription_event(db, client, "start", user)
+    elif old_package and not client.package:
+        record_subscription_event(db, client, "stop", user, from_package=old_package, from_price=old_price,
+                                  from_cycle=client.cycle_number)
+    elif old_package != client.package:
+        record_subscription_event(db, client, "package_change", user, from_package=old_package, from_price=old_price,
+                                  from_cycle=client.cycle_number)
+    elif old_price is not None and new_price is not None and round(old_price, 2) != round(new_price, 2):
+        record_subscription_event(db, client, "price_change", user, from_package=old_package, from_price=old_price,
+                                  from_cycle=client.cycle_number)

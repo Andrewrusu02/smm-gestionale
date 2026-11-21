@@ -316,3 +316,23 @@ class ClientPriceList(Base):
     price = Column(Float, nullable=False, default=0)
     notes = Column(String(255))
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class SubscriptionHistory(Base):
+    """Rinnovi e cambi di pacchetto o di prezzo di un cliente in abbonamento."""
+    __tablename__ = "subscription_history"
+    id = Column(Integer, primary_key=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False, index=True)
+    event = Column(String(20), nullable=False)  # start | renewal | package_change | price_change | stop
+    date = Column(Date, nullable=False)
+    from_package = Column(String(20))
+    to_package = Column(String(20))
+    from_price = Column(Float)
+    to_price = Column(Float)
+    from_cycle = Column(Integer)
+    to_cycle = Column(Integer)
+    billing_cycle = Column(String(20))
+    notes = Column(String(255))
+    source = Column(String(20), nullable=False, default="app")  # app | ricostruito
+    created_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=utcnow)

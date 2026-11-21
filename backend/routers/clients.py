@@ -10,8 +10,10 @@ from avatars import avatar_url
 from routers.finance import _clean_notes
 from google_sync import delete_event
 from trash import soft_delete
-from services import (PACKAGES, client_usage, create_cycle_payment, credit_check,
-                      ensure_subscription_payment, package_for, refresh_payment_statuses)
+from models import SubscriptionHistory
+from services import (PACKAGES, SUBSCRIPTION_EVENTS, client_usage, create_cycle_payment, credit_check,
+                      ensure_subscription_payment, package_for, record_subscription_event, refresh_payment_statuses,
+                      track_subscription_change)
 
 router = APIRouter()
 
@@ -102,7 +104,7 @@ def client_credits(client_id: int, content_type: str, exclude_post_id: Optional[
 
 
 @router.post("/clients/{client_id}/renew")
-def renew_package(client_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def renew_package(client_id: int, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     c = db.get(Client, client_id)
     if not c:
         raise HTTPException(status_code=404, detail="Cliente non trovato")
@@ -116,9 +118,12 @@ def renew_package(client_id: int, _: User = Depends(require_admin), db: Session 
     else:
         today = date.today()
         next_reference = date(today.year, today.month, 1)
-    c.cycle_number = (c.cycle_number or 1) + 1
+    old_cycle = c.cycle_number or 1
+    c.cycle_number = old_cycle + 1
     c.cycle_started_at = utcnow()
     create_cycle_payment(db, c, c.cycle_number, next_reference)
+    record_subscription_event(db, c, "renewal", user, from_package=c.package,
+                              from_price=(package_for(c) or {}).get("price"), from_cycle=old_cycle)
     db.commit()
     return client_out(db, c)
 
@@ -152,6 +157,7 @@ def get_client(client_id: int, _: User = Depends(require_admin), db: Session = D
     } for log in sorted(c.work_logs, key=lambda item: (item.date, item.id), reverse=True)]
     d["contracts"] = [{**contract.to_dict(), "task_count": len(contract.tasks)}
                       for contract in sorted(c.contracts, key=lambda item: item.created_at, reverse=True)]
+    d["subscription_history"] = subscription_history(c.id, None, db)
     d["video_scripts"] = [{
         **script.to_dict(), "client_name": c.name
     } for script in sorted(c.video_scripts, key=lambda item: (item.shooting_date is None,
@@ -160,7 +166,7 @@ def get_client(client_id: int, _: User = Depends(require_admin), db: Session = D
 
 
 @router.post("/clients")
-def create_client(body: ClientIn, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def create_client(body: ClientIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     _validate(body)
     data = body.model_dump(exclude=EXTRA_FIELDS)
     _clean_package(data)
@@ -175,20 +181,23 @@ def create_client(body: ClientIn, _: User = Depends(require_admin), db: Session 
             lead.status, lead.converted_client_id = "convertito", c.id
     if package_for(c):
         create_cycle_payment(db, c, 1)
+        record_subscription_event(db, c, "start", user, day=c.start_date)
     db.commit()
     return client_out(db, c)
 
 
 @router.put("/clients/{client_id}")
-def update_client(client_id: int, body: ClientIn, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def update_client(client_id: int, body: ClientIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     c = db.get(Client, client_id)
     if not c:
         raise HTTPException(status_code=404, detail="Cliente non trovato")
     _validate(body)
     data = body.model_dump(exclude=EXTRA_FIELDS)
     _clean_package(data)
+    old_package, old_price = c.package, (package_for(c) or {}).get("price")
     for k, v in data.items():
         setattr(c, k, v)
+    track_subscription_change(db, c, old_package, old_price, user)
     if package_for(c):
         ensure_subscription_payment(db, c)
     db.commit()
@@ -212,3 +221,17 @@ def delete_client(client_id: int, bg: BackgroundTasks, user: User = Depends(requ
     for event_id in events:
         bg.add_task(delete_event, event_id)
     return {"ok": True}
+
+
+@router.get("/clients/{client_id}/subscription-history")
+def subscription_history(client_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+    rows = db.query(SubscriptionHistory).filter(SubscriptionHistory.client_id == client_id) \
+        .order_by(SubscriptionHistory.date.desc(), SubscriptionHistory.id.desc()).all()
+    out = []
+    for r in rows:
+        d = r.to_dict()
+        d["event_label"] = SUBSCRIPTION_EVENTS.get(r.event, r.event)
+        d["from_package_label"] = (PACKAGES.get(r.from_package) or {}).get("name") or (r.from_package or "").capitalize() or None
+        d["to_package_label"] = (PACKAGES.get(r.to_package) or {}).get("name") or (r.to_package or "").capitalize() or None
+        out.append(d)
+    return out
