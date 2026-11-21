@@ -66,3 +66,18 @@ export function qs(params) {
   const str = s.toString();
   return str ? `?${str}` : "";
 }
+
+/** Scarica un file da un endpoint autenticato (il token va nell'header, quindi niente link diretto). */
+export async function downloadFile(path, filename, params) {
+  const r = await api.get(path, { responseType: "blob", params });
+  const disposition = r.headers?.["content-disposition"] || "";
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  const url = URL.createObjectURL(r.data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || (match ? decodeURIComponent(match[1]) : "download");
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

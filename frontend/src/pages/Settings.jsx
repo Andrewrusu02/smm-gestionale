@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, Copy, Link2, Loader2, Moon, RefreshCw, Sun, Unplug, Upload } from "lucide-react";
+import { CheckCircle2, Copy, Database, Download, Link2, Loader2, Moon, RefreshCw, Sun, Unplug, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Chip, Field, PageHeader, Panel } from "@/components/common";
+import { Chip, EmptyState, Field, Loading, PageHeader, Panel } from "@/components/common";
 import { useAuth } from "@/context/AuthContext";
-import { api, errMsg, useApi } from "@/lib/api";
-import { fmtDateTime } from "@/lib/constants";
+import { api, downloadFile, errMsg, useApi } from "@/lib/api";
+import { fmtBytes, fmtDateTime } from "@/lib/constants";
 
 function ProfileTab() {
   const { user, setUser } = useAuth();
@@ -190,6 +190,68 @@ function GoogleTab() {
   );
 }
 
+const BACKUP_KIND = {
+  auto: { label: "Automatico", chip: "border-indigo-200 bg-indigo-50 text-indigo-700" },
+  manuale: { label: "Manuale", chip: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  "pre-migrazione": { label: "Prima di una migrazione", chip: "border-amber-200 bg-amber-50 text-amber-800" },
+  altro: { label: "Altro", chip: "border-slate-200 bg-slate-50 text-slate-600" },
+};
+
+function BackupTab() {
+  const { data, loading, reload } = useApi("/backups");
+  const [busy, setBusy] = useState("");
+  const backupNow = async () => {
+    setBusy("now");
+    try {
+      const { data: b } = await api.post("/backups");
+      toast.success(`Backup creato: ${b.name}`);
+      reload();
+    } catch (e) {
+      toast.error(errMsg(e));
+    } finally {
+      setBusy("");
+    }
+  };
+  const download = async (name) => {
+    setBusy(name);
+    try { await downloadFile(`/backups/${encodeURIComponent(name)}/download`, name); } catch (e) { toast.error(errMsg(e)); } finally { setBusy(""); }
+  };
+  return (
+    <Panel
+      title="Backup del database"
+      testId="backup-panel"
+      action={<Button onClick={backupNow} disabled={busy === "now"} className="bg-indigo-600 hover:bg-indigo-700" data-testid="backup-now-button">
+        {busy === "now" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}Backup ora
+      </Button>}
+    >
+      <p className="mb-4 text-sm text-slate-500">
+        Ogni notte viene creato un backup automatico. Si conservano gli ultimi {data?.retention_days || 30} giorni; i più vecchi vengono cancellati.
+        Prima di ogni aggiornamento del database viene fatto un backup in più.
+      </p>
+      {loading && !data ? <Loading /> : !data?.items?.length ? (
+        <EmptyState icon={Database} title="Nessun backup" text="Crea il primo backup con il pulsante qui sopra." />
+      ) : (
+        <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+          {data.items.map((b) => (
+            <div key={b.name} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3" data-testid="backup-row">
+              <div className="min-w-0">
+                <p className="truncate font-num text-sm font-semibold text-slate-900">{b.name}</p>
+                <p className="text-xs text-slate-500">{fmtDateTime(b.created_at)} · {fmtBytes(b.size)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Chip className={(BACKUP_KIND[b.kind] || BACKUP_KIND.altro).chip}>{(BACKUP_KIND[b.kind] || BACKUP_KIND.altro).label}</Chip>
+                <Button variant="outline" size="sm" onClick={() => download(b.name)} disabled={busy === b.name} data-testid="backup-download-button">
+                  {busy === b.name ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}Scarica
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 export default function Settings() {
   const { isAdmin } = useAuth();
   const [params] = useSearchParams();
@@ -201,16 +263,18 @@ export default function Settings() {
   }, [params]);
   return (
     <div data-testid="settings-page">
-      <PageHeader eyebrow="Account" title="Impostazioni" subtitle="Profilo, sicurezza e integrazioni." />
+      <PageHeader eyebrow="Account" title="Impostazioni" subtitle="Profilo, sicurezza, integrazioni e backup." />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="profilo" data-testid="settings-tab-profilo">Profilo</TabsTrigger>
           <TabsTrigger value="sicurezza" data-testid="settings-tab-sicurezza">Sicurezza</TabsTrigger>
           {isAdmin && <TabsTrigger value="integrazioni" data-testid="settings-tab-integrazioni">Integrazioni</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="backup" data-testid="settings-tab-backup">Backup</TabsTrigger>}
         </TabsList>
         <TabsContent value="profilo"><ProfileTab /></TabsContent>
         <TabsContent value="sicurezza"><PasswordTab /></TabsContent>
         {isAdmin && <TabsContent value="integrazioni"><GoogleTab /></TabsContent>}
+        {isAdmin && <TabsContent value="backup"><BackupTab /></TabsContent>}
       </Tabs>
     </div>
   );

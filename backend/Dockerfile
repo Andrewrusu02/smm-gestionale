@@ -4,5 +4,6 @@ COPY requirements-docker.txt .
 RUN pip install --no-cache-dir -r requirements-docker.txt
 COPY *.py ./
 COPY routers ./routers
+COPY migrations ./migrations
 EXPOSE 8001
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001"]

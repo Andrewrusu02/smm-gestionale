@@ -95,6 +95,21 @@ Per visualizzare i log:
 docker compose logs -f
 ```
 
+## Database: migrazioni e backup
+
+- All'avvio il backend applica in automatico le migrazioni mancanti di `backend/migrations/`
+  (file `NNN_nome.sql` o `NNN_nome.py`) e le registra nella tabella `schema_migrations`.
+- Prima di ogni migrazione viene salvata una copia del database in `/data/backups/`
+  (`pre-migrazione-*.db`).
+- Le migrazioni sono additive e idempotenti: una colonna già presente viene saltata.
+- Su un database nuovo (vuoto) lo schema viene creato dai modelli e tutte le migrazioni
+  vengono segnate come applicate.
+- Ogni notte (ore 3, variabile `BACKUP_HOUR`) viene creato un backup `auto-*.db`; i backup più
+  vecchi di 30 giorni vengono cancellati. Da Impostazioni → Backup l'amministratore vede
+  l'elenco, crea un backup al volo e lo scarica.
+- Per controllare lo stato: `docker compose exec backend python db_stats.py`
+  (righe per tabella, totali e migrazioni applicate).
+
 ## Roadmap e Contributi (Call to Action)
 
 Il progetto è in evoluzione e il contributo della community è fondamentale.

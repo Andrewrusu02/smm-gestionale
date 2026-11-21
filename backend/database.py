@@ -31,6 +31,15 @@ class Base(DeclarativeBase):
         return out
 
 
+def init_db():
+    """Crea lo schema su un database nuovo e applica le migrazioni mancanti (con backup prima di ognuna)."""
+    if IS_SQLITE:
+        from migrator import run_migrations
+        return run_migrations(db_path, create_schema=lambda: Base.metadata.create_all(bind=engine))
+    Base.metadata.create_all(bind=engine)
+    return []
+
+
 def get_db():
     db = SessionLocal()
     try:
