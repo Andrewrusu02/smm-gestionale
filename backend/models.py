@@ -165,6 +165,8 @@ class WorkLog(Base):
     hours = Column(Float, default=0)
     worker_expense = Column(Float, nullable=False, default=0)
     cost = Column(Float, default=0)
+    team_paid = Column(Boolean, nullable=False, default=False)  # compenso saldato al collaboratore
+    team_paid_at = Column(Date)
     created_at = Column(DateTime, default=utcnow)
 
     user = relationship("User", foreign_keys=[user_id])

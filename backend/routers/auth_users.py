@@ -165,8 +165,6 @@ def list_users(year: Optional[int] = None, month: Optional[int] = None,
     - pending_*: compensi non ancora saldati, di qualsiasi mese (è quanto devi davvero).
     - paid_total: compensi già saldati, di qualsiasi mese.
     """
-    from routers.finance import _team_payment_status  # import locale: evita cicli all'avvio
-
     start, nxt = _month_range(year, month)
     stats = {}
     for w in db.query(WorkLog).all():
@@ -179,7 +177,7 @@ def list_users(year: Optional[int] = None, month: Optional[int] = None,
             s["month_cost"] += payout
             s["month_revenue"] += w.revenue_amount or 0
             s["month_jobs"] += 1
-        if _team_payment_status(w.notes):
+        if w.team_paid:
             s["paid_total"] += payout
         else:
             s["pending_payout"] += payout

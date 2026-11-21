@@ -7,7 +7,7 @@ from database import get_db
 from models import Client, Lead, Post, Task, User, WorkLog, utcnow
 from security import get_current_user, require_admin
 from avatars import avatar_url
-from routers.finance import _clean_notes, _team_payment_status
+from routers.finance import _clean_notes
 from services import (PACKAGES, client_usage, create_cycle_payment, credit_check,
                       ensure_subscription_payment, package_for, refresh_payment_statuses)
 
@@ -145,7 +145,7 @@ def get_client(client_id: int, _: User = Depends(require_admin), db: Session = D
         "worker_payout": log.worker_expense or 0,
         "client_revenue": log.revenue_amount or 0,
         "margin": round((log.revenue_amount or 0) - (log.worker_expense or 0), 2),
-        "team_paid": _team_payment_status(log.notes),
+        "team_paid": bool(log.team_paid),
         "notes": _clean_notes(log.notes),
     } for log in sorted(c.work_logs, key=lambda item: (item.date, item.id), reverse=True)]
     d["contracts"] = [{**contract.to_dict(), "task_count": len(contract.tasks)}

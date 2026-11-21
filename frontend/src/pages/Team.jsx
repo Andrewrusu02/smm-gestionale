@@ -223,7 +223,7 @@ function CompensationTable({ logs, showMember, selectedIds, onToggleSelect, onTo
                       <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                         <span>{log.client_name || "Nessun cliente"}</span>
                         {showMember && <span className="lg:hidden">· {log.user_name}</span>}
-                        {log.team_paid && <Chip className="border-emerald-200 bg-emerald-50 text-emerald-700">Saldato</Chip>}
+                        {log.team_paid && <Chip className="border-emerald-200 bg-emerald-50 text-emerald-700">{log.team_paid_at ? `Saldato il ${fmtDate(log.team_paid_at)}` : "Saldato"}</Chip>}
                         {zero && <Chip className="border-amber-200 bg-amber-50 text-amber-700">Compenso da inserire</Chip>}
                       </p>
                     </td>

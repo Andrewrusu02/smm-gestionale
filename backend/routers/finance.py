@@ -85,17 +85,21 @@ class WorkLogUpdate(BaseModel):
     team_paid: Optional[bool] = None
 
 
+# Tag usati dalle versioni precedenti per segnare il saldo nelle note: dalla migrazione 005 lo stato vive
+# nelle colonne work_logs.team_paid / team_paid_at. Le funzioni restano per compatibilità.
 TEAM_PAID_TAG = "[SALDATO_TEAM]"
 LEGACY_TEAM_PAID_TAG = "[team-paid]"
 
 
-def _team_payment_status(notes: Optional[str]) -> bool:
-    value = notes or ""
+def _team_payment_status(worklog_or_notes) -> bool:
+    if isinstance(worklog_or_notes, WorkLog):
+        return bool(worklog_or_notes.team_paid)
+    value = worklog_or_notes or ""
     return TEAM_PAID_TAG in value or LEGACY_TEAM_PAID_TAG in value
 
 
 def _clean_notes(notes: Optional[str]) -> Optional[str]:
-    """Note senza il tag interno di saldo (il tag resta solo nel DB)."""
+    """Note senza eventuali tag di saldo rimasti dalle versioni precedenti."""
     value = (notes or "").replace(TEAM_PAID_TAG, "").replace(LEGACY_TEAM_PAID_TAG, "").strip()
     return value or None
 
@@ -110,11 +114,12 @@ def _cost_mode(w: WorkLog) -> str:
 
 
 def _set_team_payment_status(worklog: WorkLog, paid: bool) -> None:
-    notes = worklog.notes or ""
-    notes = notes.replace(TEAM_PAID_TAG, "").replace(LEGACY_TEAM_PAID_TAG, "").strip()
-    if paid:
-        notes = f"{notes} {TEAM_PAID_TAG}".strip()
-    worklog.notes = notes or None
+    paid = bool(paid)
+    if paid and not worklog.team_paid:
+        worklog.team_paid_at = date.today()
+    elif not paid:
+        worklog.team_paid_at = None
+    worklog.team_paid = paid
 
 
 def _clear_client_if_requested(worklog: WorkLog, body: WorkLogUpdate) -> None:
@@ -228,7 +233,7 @@ def worklog_out(w: WorkLog):
     d["worker_payout"] = w.worker_expense or 0
     d["client_revenue"] = w.revenue_amount or 0
     d["margin"] = round((w.revenue_amount or 0) - (w.worker_expense or 0), 2)
-    d["team_paid"] = _team_payment_status(w.notes)
+    d["team_paid"] = bool(w.team_paid)
     d["notes"] = _clean_notes(w.notes)
     d["cost_mode"] = _cost_mode(w)
     d["fixed_cost"] = (w.worker_expense or 0) if d["cost_mode"] == "prestazione" else None
@@ -282,12 +287,11 @@ def _apply_worklog(db, w: WorkLog, body: WorkLogIn, user: User):
     w.task_id, w.date = task_id, work_date
     w.completed_at = completed_at
     w.description = body.description or w.description or (task.title if task else "Lavoro")
-    was_paid = _team_payment_status(w.notes)
     notes = body.notes if body.notes is not None else w.notes
-    w.notes = notes or None
-    # Lo stato "saldato" vive come tag nelle note: va preservato se la richiesta non lo cambia,
-    # altrimenti una modifica delle note (o un form che non lo conosce) annulla il saldo.
-    _set_team_payment_status(w, body.team_paid if body.team_paid is not None else was_paid)
+    w.notes = _clean_notes(notes)
+    # Lo stato "saldato" resta com'è se la richiesta non lo cambia.
+    if body.team_paid is not None:
+        _set_team_payment_status(w, body.team_paid)
     w.hours, w.fixed_cost = body.hours, fixed_cost
     w.worker_expense = fixed_cost if fixed_cost is not None else worklog_cost(owner, body.hours, None)
     if body.client_revenue is not None:
