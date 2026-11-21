@@ -8,6 +8,7 @@ import PackageUsage from "@/components/PackageUsage";
 import PriceListPanel from "@/components/PriceListPanel";
 import SubscriptionHistoryPanel from "@/components/SubscriptionHistoryPanel";
 import IdeasPanel from "@/components/IdeasPanel";
+import ClientReportButton from "@/components/ClientReportButton";
 import ClientFormDialog from "@/pages/ClientFormDialog";
 import { api, errMsg, useApi } from "@/lib/api";
 import VideoScripts from "@/pages/VideoScripts";
@@ -65,6 +66,7 @@ export default function ClientDetail() {
               description={`I crediti verranno ripristinati al massimo del pacchetto ${style.label} e verrà registrato un nuovo pagamento di ${eur(c.package_info?.price)} in stato Da saldare.`}
               trigger={<Button className={`rounded-xl font-semibold ${c.credits_exhausted ? "bg-rose-600 hover:bg-rose-700 animate-pulse" : "bg-emerald-600 hover:bg-emerald-700"}`} data-testid="renew-package-button"><RefreshCcw className="mr-2 h-4 w-4" />Rinnova Pacchetto</Button>} />
           )}
+          <ClientReportButton clientId={c.id} />
           <Button variant="outline" onClick={() => setJobOpen(true)}><BriefcaseBusiness className="mr-2 h-4 w-4" />Nuovo lavoro</Button>
           <Button variant="outline" onClick={() => setEdit(true)} data-testid="edit-client-button"><Pencil className="mr-2 h-4 w-4" />Modifica</Button>
           <ConfirmDialog testId="delete-client" title="Eliminare il cliente?" description="Il cliente finisce nel cestino insieme a contenuti, task e pagamenti collegati. Potrai ripristinarlo entro 30 giorni." onConfirm={remove}

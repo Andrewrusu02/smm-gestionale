@@ -305,6 +305,36 @@ function BackupTab() {
   );
 }
 
+function AgencyTab() {
+  const { data, setData } = useApi("/settings/agency");
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (data) setName(data.name); }, [data]);
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const r = await api.put("/settings/agency", { name });
+      setData(r.data);
+      toast.success("Nome dell'agenzia salvato");
+    } catch (err) {
+      toast.error(errMsg(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Panel title="Agenzia" className="max-w-xl">
+      <form onSubmit={save} className="space-y-4">
+        <Field label="Nome dell'agenzia" hint="Compare nell'intestazione dei report PDF per i clienti.">
+          <Input required value={name} onChange={(e) => setName(e.target.value)} data-testid="agency-name-input" />
+        </Field>
+        <Button type="submit" disabled={busy} className="bg-indigo-600 hover:bg-indigo-700" data-testid="agency-save">{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salva</Button>
+      </form>
+    </Panel>
+  );
+}
+
 export default function Settings() {
   const { isAdmin } = useAuth();
   const [params] = useSearchParams();
@@ -321,11 +351,13 @@ export default function Settings() {
         <TabsList className="mb-6">
           <TabsTrigger value="profilo" data-testid="settings-tab-profilo">Profilo</TabsTrigger>
           <TabsTrigger value="sicurezza" data-testid="settings-tab-sicurezza">Sicurezza</TabsTrigger>
+          {isAdmin && <TabsTrigger value="agenzia" data-testid="settings-tab-agenzia">Agenzia</TabsTrigger>}
           {isAdmin && <TabsTrigger value="integrazioni" data-testid="settings-tab-integrazioni">Integrazioni</TabsTrigger>}
           {isAdmin && <TabsTrigger value="backup" data-testid="settings-tab-backup">Backup</TabsTrigger>}
         </TabsList>
         <TabsContent value="profilo"><ProfileTab /></TabsContent>
         <TabsContent value="sicurezza"><PasswordTab /></TabsContent>
+        {isAdmin && <TabsContent value="agenzia"><AgencyTab /></TabsContent>}
         {isAdmin && <TabsContent value="integrazioni"><GoogleTab /></TabsContent>}
         {isAdmin && <TabsContent value="backup"><BackupTab /></TabsContent>}
       </Tabs>
