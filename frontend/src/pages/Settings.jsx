@@ -1,25 +1,31 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, Copy, Database, Download, Link2, Loader2, Moon, RefreshCw, Sun, Unplug, Upload } from "lucide-react";
+import { CheckCircle2, Copy, Database, Download, Link2, Loader2, Monitor, Moon, RefreshCw, Sun, Trash2, Unplug, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Chip, EmptyState, Field, Loading, PageHeader, Panel } from "@/components/common";
+import { Chip, EmptyState, Field, Loading, NativeSelect, PageHeader, Panel, UserAvatar } from "@/components/common";
+import { ADMIN_NAV, EMPLOYEE_NAV } from "@/components/AppShell";
 import { useAuth } from "@/context/AuthContext";
 import { api, downloadFile, errMsg, useApi } from "@/lib/api";
 import { fmtBytes, fmtDateTime } from "@/lib/constants";
 
+const THEMES = [
+  { key: "light", label: "Chiaro", icon: Sun },
+  { key: "dark", label: "Scuro", icon: Moon },
+  { key: "auto", label: "Automatico", icon: Monitor },
+];
+
 function ProfileTab() {
-  const { user, setUser } = useAuth();
-  const [theme, setTheme] = useState(() => localStorage.getItem("smm_theme") || "light");
-  const avatarKey = `smm_avatar_${user.id || user.email}`;
-  const [avatar, setAvatar] = useState(() => localStorage.getItem(avatarKey));
+  const { user, setUser, isAdmin } = useAuth();
   const [form, setForm] = useState({ name: user.name, phone: user.phone || "" });
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState("");
+  const theme = user.theme || "light";
+  const homeOptions = (isAdmin ? ADMIN_NAV : EMPLOYEE_NAV).filter((n) => n.to !== "/impostazioni");
   const save = async (e) => {
     e.preventDefault();
-    setBusy(true);
+    setBusy("profile");
     try {
       const { data } = await api.put("/auth/me", form);
       setUser(data);
@@ -27,53 +33,100 @@ function ProfileTab() {
     } catch (err) {
       toast.error(errMsg(err));
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   };
-  const changeTheme = (next) => {
-    setTheme(next);
-    localStorage.setItem("smm_theme", next);
-    document.documentElement.classList.toggle("dark", next === "dark");
+  const savePrefs = async (prefs, message) => {
+    setBusy("prefs");
+    try {
+      const { data } = await api.put("/auth/me/preferences", prefs);
+      setUser(data);
+      toast.success(message);
+    } catch (err) {
+      toast.error(errMsg(err));
+    } finally {
+      setBusy("");
+    }
   };
   const uploadAvatar = (e) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
     if (!file.type.startsWith("image/")) return toast.error("Seleziona un'immagine valida");
+    if (file.size > 8 * 1024 * 1024) return toast.error("Immagine troppo grande (massimo 8 MB)");
     const reader = new FileReader();
-    reader.onload = () => {
-      const value = String(reader.result);
-      localStorage.setItem(avatarKey, value);
-      setAvatar(value);
-      toast.success("Immagine profilo aggiornata");
+    reader.onload = async () => {
+      setBusy("avatar");
+      try {
+        const { data } = await api.post("/auth/me/avatar", { data_url: String(reader.result) });
+        setUser(data);
+        toast.success("Foto profilo aggiornata");
+      } catch (err) {
+        toast.error(errMsg(err));
+      } finally {
+        setBusy("");
+      }
     };
     reader.onerror = () => toast.error("Impossibile leggere l'immagine");
     reader.readAsDataURL(file);
   };
+  const removeAvatar = async () => {
+    setBusy("avatar");
+    try {
+      const { data } = await api.delete("/auth/me/avatar");
+      setUser(data);
+      toast.success("Foto profilo rimossa");
+    } catch (err) {
+      toast.error(errMsg(err));
+    } finally {
+      setBusy("");
+    }
+  };
   return (
     <div className="space-y-6">
     <Panel title="Profilo" className="max-w-xl">
-      <div className="mb-5 flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-lg font-bold text-indigo-700">
-          {avatar ? <img src={avatar} alt="Avatar profilo" className="h-full w-full object-cover" /> : user.name?.slice(0, 1).toUpperCase()}
-        </div>
+      <div className="mb-5 flex flex-wrap items-center gap-4">
+        <UserAvatar name={user.name} url={user.avatar_url} size="lg" testId="profile-avatar" />
         <label className="inline-flex cursor-pointer items-center rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50">
-          <Upload className="mr-2 h-4 w-4" />Carica immagine
-          <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} data-testid="profile-avatar-input" />
+          {busy === "avatar" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}Carica foto
+          <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} disabled={busy === "avatar"} data-testid="profile-avatar-input" />
         </label>
+        {user.avatar_url && (
+          <Button type="button" variant="ghost" className="text-rose-600" onClick={removeAvatar} disabled={busy === "avatar"} data-testid="profile-avatar-remove">
+            <Trash2 className="mr-2 h-4 w-4" />Rimuovi
+          </Button>
+        )}
       </div>
       <form onSubmit={save} className="space-y-4">
         <Field label="Email"><Input value={user.email} disabled data-testid="profile-email-input" /></Field>
         <Field label="Nome"><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="profile-name-input" /></Field>
         <Field label="Telefono"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="profile-phone-input" /></Field>
-        <Button type="submit" disabled={busy} className="bg-indigo-600 hover:bg-indigo-700" data-testid="profile-save-button">{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salva</Button>
+        <Button type="submit" disabled={busy === "profile"} className="bg-indigo-600 hover:bg-indigo-700" data-testid="profile-save-button">{busy === "profile" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salva</Button>
       </form>
     </Panel>
-    <Panel title="Aspetto" className="max-w-xl">
-      <div className="flex items-center justify-between gap-4">
-        <div><p className="font-semibold">Tema interfaccia</p><p className="text-sm text-slate-500">La preferenza viene salvata in questo browser.</p></div>
-        <Button type="button" variant="outline" onClick={() => changeTheme(theme === "dark" ? "light" : "dark")} data-testid="theme-toggle">
-          {theme === "dark" ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}{theme === "dark" ? "Tema chiaro" : "Tema scuro"}
-        </Button>
+    <Panel title="Preferenze" className="max-w-xl">
+      <p className="mb-4 text-sm text-slate-500">Le preferenze sono salvate nel tuo account e ti seguono su qualsiasi dispositivo.</p>
+      <div className="space-y-5">
+        <div>
+          <p className="mb-2 font-semibold">Tema interfaccia</p>
+          <div className="grid grid-cols-3 gap-2" data-testid="theme-options">
+            {THEMES.map(({ key, label, icon: Icon }) => (
+              <Button key={key} type="button" variant="outline" disabled={busy === "prefs"}
+                onClick={() => key !== theme && savePrefs({ theme: key }, "Tema aggiornato")}
+                className={theme === key ? "border-indigo-500 bg-indigo-50 text-indigo-700" : ""}
+                data-testid={`theme-${key}`}>
+                <Icon className="mr-2 h-4 w-4" />{label}
+              </Button>
+            ))}
+          </div>
+          {theme === "auto" && <p className="mt-2 text-xs text-slate-500">Segue l'impostazione chiaro/scuro del dispositivo.</p>}
+        </div>
+        <Field label="Pagina iniziale" hint="La pagina che si apre dopo l'accesso.">
+          <NativeSelect value={user.home_page || "/"} disabled={busy === "prefs"}
+            onChange={(e) => savePrefs({ home_page: e.target.value }, "Pagina iniziale aggiornata")} data-testid="home-page-select">
+            {homeOptions.map((n) => <option key={n.to} value={n.to}>{n.label}</option>)}
+          </NativeSelect>
+        </Field>
       </div>
     </Panel>
     </div>

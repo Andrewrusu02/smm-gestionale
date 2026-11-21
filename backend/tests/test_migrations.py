@@ -146,3 +146,20 @@ def test_backup_api(client, admin_headers, employee_headers):
     d = client.get(f"/api/backups/{name}/download", headers=admin_headers)
     assert d.status_code == 200 and d.content[:15] == b"SQLite format 3"
     assert client.get("/api/backups/..%2Fx.db/download", headers=admin_headers).status_code == 404
+
+
+def test_migrated_old_db_matches_models(tmp_path, monkeypatch):
+    """Ogni tabella/colonna dei modelli deve essere creata da una migrazione sul database di produzione."""
+    from database import Base
+    monkeypatch.setenv("BACKUP_DIR", str(tmp_path / "bk"))
+    db = old_db(tmp_path)
+    migrator.run_migrations(db)
+    conn = sqlite3.connect(db)
+    missing = []
+    for table in Base.metadata.sorted_tables:
+        if not migrator.table_exists(conn, table.name):
+            missing.append(table.name)
+            continue
+        missing += [f"{table.name}.{c.name}" for c in table.columns if not migrator.column_exists(conn, table.name, c.name)]
+    conn.close()
+    assert missing == []

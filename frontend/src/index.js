@@ -4,11 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@/index.css";
 import "@/dark-theme.css";
 import App from "@/App";
+import { applyCachedTheme } from "@/lib/theme";
 
-// Applica il tema salvato prima del primo disegno, così non c'è il lampo chiaro (anche nella pagina di login).
-try {
-  document.documentElement.classList.toggle("dark", localStorage.getItem("smm_theme") === "dark");
-} catch {}
+// Applica l'ultimo tema usato prima del primo disegno, così non c'è il lampo chiaro (anche nel login).
+applyCachedTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {

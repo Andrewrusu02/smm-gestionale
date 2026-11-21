@@ -4,6 +4,24 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { initials } from "@/lib/constants";
+
+export const mediaUrl = (path) => (path ? `${process.env.REACT_APP_BACKEND_URL || ""}${path}` : null);
+
+const AVATAR_SIZES = {
+  xs: "h-6 w-6 text-[10px]", sm: "h-8 w-8 text-xs", md: "h-10 w-10 text-sm", lg: "h-16 w-16 text-lg",
+};
+
+export function UserAvatar({ name, url, size = "md", className, testId }) {
+  return (
+    <span
+      data-testid={testId}
+      className={cn("flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 font-bold text-indigo-700", AVATAR_SIZES[size], className)}
+    >
+      {url ? <img src={mediaUrl(url)} alt={name ? `Foto di ${name}` : ""} className="h-full w-full object-cover" loading="lazy" /> : initials(name || "")}
+    </span>
+  );
+}
 
 export function PageHeader({ title, subtitle, actions, eyebrow }) {
   return (

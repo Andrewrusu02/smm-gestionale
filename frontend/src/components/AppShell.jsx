@@ -1,18 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   CalendarDays, ChartNoAxesCombined, FileText, KanbanSquare, LayoutDashboard, LogOut, Menu, Receipt, Settings, Target, UserCog, Users, Video,
 } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/context/AuthContext";
-import { initials } from "@/lib/constants";
+import { UserAvatar } from "@/components/common";
 import NotificationsBell from "@/components/NotificationsBell";
 import { cn } from "@/lib/utils";
 
-const THEME_KEY = "smm_theme";
-const avatarKey = (user) => `smm_avatar_${user?.id || user?.email || "current"}`;
-
-const ADMIN_NAV = [
+export const ADMIN_NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
   { to: "/clienti", label: "Clienti", icon: Users, id: "clienti" },
   { to: "/lead", label: "Lead & appuntamenti", icon: Target, id: "lead" },
@@ -25,7 +22,7 @@ const ADMIN_NAV = [
   { to: "/team", label: "Team & compensi", icon: UserCog, id: "team" },
   { to: "/impostazioni", label: "Impostazioni", icon: Settings, id: "impostazioni" },
 ];
-const EMPLOYEE_NAV = [
+export const EMPLOYEE_NAV = [
   { to: "/", label: "La mia giornata", icon: LayoutDashboard, id: "dashboard" },
   { to: "/calendario", label: "Calendario editoriale", icon: CalendarDays, id: "calendario" },
   { to: "/task", label: "WORK TO DO", icon: KanbanSquare, id: "task" },
@@ -34,12 +31,8 @@ const EMPLOYEE_NAV = [
 
 function SidebarBody({ onNavigate }) {
   const { user, isAdmin, logout } = useAuth();
-  const [avatar, setAvatar] = useState(() => localStorage.getItem(avatarKey(user)));
   const navigate = useNavigate();
   const nav = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
-  useEffect(() => {
-    setAvatar(localStorage.getItem(avatarKey(user)));
-  }, [user]);
   return (
     <div className="grain flex h-full flex-col bg-slate-950 text-slate-300">
       <div className="flex h-16 items-center gap-3 px-6">
@@ -71,9 +64,7 @@ function SidebarBody({ onNavigate }) {
       </nav>
       <div className="m-3 rounded-2xl bg-white/5 p-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-500/20 text-sm font-bold text-indigo-300">
-            {avatar ? <img src={avatar} alt="" className="h-full w-full rounded-full object-cover" /> : initials(user?.name)}
-          </div>
+          <UserAvatar name={user?.name} url={user?.avatar_url} size="sm" className="h-9 w-9 bg-indigo-500/20 text-indigo-300" testId="sidebar-avatar" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white" data-testid="sidebar-user-name">{user?.name}</p>
             <p className="text-xs text-slate-500" data-testid="sidebar-user-role">{isAdmin ? "Amministratore" : "Dipendente"}</p>
@@ -94,10 +85,6 @@ function SidebarBody({ onNavigate }) {
 
 export default function AppShell() {
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const theme = localStorage.getItem(THEME_KEY) || "light";
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, []);
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-900 dark:text-slate-100">
       <aside className="fixed inset-y-0 left-0 hidden w-64 md:block">

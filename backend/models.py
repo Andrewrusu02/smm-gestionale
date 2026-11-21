@@ -20,6 +20,10 @@ class User(Base):
     hourly_rate = Column(Float, default=0)
     monthly_salary = Column(Float, default=0)
     active = Column(Boolean, default=True)
+    avatar_path = Column(String(255))  # nome del file in /data/avatars
+    theme = Column(String(10))  # light | dark | auto (None = non ancora scelto)
+    home_page = Column(String(80))
+    preferences_migrated = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=utcnow)
 
 

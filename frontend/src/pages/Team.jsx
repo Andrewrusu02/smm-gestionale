@@ -7,10 +7,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Chip, ConfirmDialog, EmptyState, Field, Loading, NativeSelect, PageHeader, Panel, StatCard } from "@/components/common";
+import { Chip, ConfirmDialog, EmptyState, Field, Loading, NativeSelect, PageHeader, Panel, StatCard, UserAvatar } from "@/components/common";
 import { useAuth } from "@/context/AuthContext";
 import { api, errMsg, useApi } from "@/lib/api";
-import { currentPeriod, eur, fmtDate, initials, periodLabel } from "@/lib/constants";
+import { currentPeriod, eur, fmtDate, periodLabel } from "@/lib/constants";
 
 const EMPTY = { name: "", email: "", role: "dipendente", password: "", phone: "", job_title: "", hourly_rate: 0, monthly_salary: 0, active: true };
 const LOG_EMPTY = { client_id: "", date: "", description: "", notes: "", worker_payout: 0, client_revenue: 0, team_paid: false };
@@ -128,7 +128,7 @@ function MemberCard({ member, selected, isSelf, onSelect, onEdit, onRemove, peri
       data-testid={`team-row-${member.id}`}
     >
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">{initials(member.name)}</span>
+        <UserAvatar name={member.name} url={member.avatar_url} size="md" testId={`team-avatar-${member.id}`} />
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-slate-900">{member.name}</p>
           <p className="truncate text-xs text-slate-500">{member.job_title || member.email}</p>

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, BriefcaseBusiness, Mail, Pencil, Phone, RefreshCcw, Trash2, Video } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Chip, ConfirmDialog, Loading, PageHeader, Panel } from "@/components/common";
+import { Chip, ConfirmDialog, Loading, PageHeader, Panel, UserAvatar } from "@/components/common";
 import PackageUsage from "@/components/PackageUsage";
 import ClientFormDialog from "@/pages/ClientFormDialog";
 import { api, errMsg, useApi } from "@/lib/api";
@@ -108,7 +108,7 @@ export default function ClientDetail() {
                 {(c.tasks || []).map((t) => (
                   <li key={t.id} className="flex items-center justify-between py-2.5 text-sm">
                     <span className="truncate">{t.title}</span>
-                    <span className="flex items-center gap-2 text-xs text-slate-500">{t.assignee_name || "Non assegnato"}<Chip className={(TASK_STATUS_MAP[t.status] || TASK_STATUS_MAP.da_fare).chip}>{(TASK_STATUS_MAP[t.status] || TASK_STATUS_MAP.da_fare).label}</Chip><Button size="icon" variant="ghost" onClick={() => setTaskEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button></span>
+                    <span className="flex items-center gap-2 text-xs text-slate-500">{t.assignee_name && <UserAvatar name={t.assignee_name} url={t.assignee_avatar_url} size="xs" />}{t.assignee_name || "Non assegnato"}<Chip className={(TASK_STATUS_MAP[t.status] || TASK_STATUS_MAP.da_fare).chip}>{(TASK_STATUS_MAP[t.status] || TASK_STATUS_MAP.da_fare).label}</Chip><Button size="icon" variant="ghost" onClick={() => setTaskEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button></span>
                   </li>
                 ))}
               </ul>

@@ -1,19 +1,24 @@
 from datetime import date, datetime, time, timedelta
 from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from database import get_db
 from models import LoginAttempt, Task, User, WorkLog, utcnow
 from security import create_token, get_current_user, hash_password, require_admin, verify_password
+from avatars import avatar_url, remove_avatar_file, resolve_avatar, save_avatar
 
 router = APIRouter()
 MAX_ATTEMPTS, LOCK_MINUTES = 5, 15
 
 
 def user_out(u: User):
-    return u.to_dict(exclude=("password_hash",))
+    d = u.to_dict(exclude=("password_hash",))
+    d["avatar_url"] = avatar_url(u)
+    d["preferences_migrated"] = bool(u.preferences_migrated)
+    return d
 
 
 class LoginIn(BaseModel):
@@ -24,6 +29,16 @@ class LoginIn(BaseModel):
 class ProfileIn(BaseModel):
     name: str = Field(min_length=1)
     phone: Optional[str] = None
+
+
+class PreferencesIn(BaseModel):
+    theme: Optional[Literal["light", "dark", "auto"]] = None
+    home_page: Optional[str] = Field(default=None, max_length=80, pattern=r"^/[a-z0-9/-]*$")
+    preferences_migrated: Optional[bool] = None
+
+
+class AvatarIn(BaseModel):
+    data_url: str = Field(min_length=10)
 
 
 class PasswordIn(BaseModel):
@@ -81,6 +96,44 @@ def update_me(body: ProfileIn, user: User = Depends(get_current_user), db: Sessi
     user.name, user.phone = body.name.strip(), body.phone
     db.commit()
     return user_out(user)
+
+
+@router.put("/auth/me/preferences")
+def update_preferences(body: PreferencesIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.merge(user)
+    for key, value in body.model_dump(exclude_unset=True).items():
+        if key == "preferences_migrated":
+            user.preferences_migrated = bool(value)
+        else:
+            setattr(user, key, value or None)
+    db.commit()
+    return user_out(user)
+
+
+@router.post("/auth/me/avatar")
+def upload_avatar(body: AvatarIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.merge(user)
+    save_avatar(user, body.data_url)
+    db.commit()
+    return user_out(user)
+
+
+@router.delete("/auth/me/avatar")
+def delete_avatar(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.merge(user)
+    remove_avatar_file(user.avatar_path)
+    user.avatar_path = None
+    db.commit()
+    return user_out(user)
+
+
+@router.get("/avatars/{name}")
+def get_avatar(name: str):
+    # Pubblico (serve ai tag <img>), ma il nome del file contiene un token casuale non indovinabile.
+    path = resolve_avatar(name)
+    if not path:
+        raise HTTPException(status_code=404, detail="Immagine non trovata")
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @router.post("/auth/change-password")
@@ -163,7 +216,8 @@ def list_users(year: Optional[int] = None, month: Optional[int] = None,
 
 @router.get("/users/basic")
 def users_basic(_: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return [{"id": u.id, "name": u.name, "role": u.role} for u in db.query(User).filter(User.active.is_(True)).order_by(User.name)]
+    return [{"id": u.id, "name": u.name, "role": u.role, "avatar_url": avatar_url(u)}
+            for u in db.query(User).filter(User.active.is_(True)).order_by(User.name)]
 
 
 @router.post("/users")

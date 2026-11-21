@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Client, Lead, Post, Task, User, WorkLog, utcnow
 from security import get_current_user, require_admin
+from avatars import avatar_url
 from routers.finance import _clean_notes, _team_payment_status
 from services import (PACKAGES, client_usage, create_cycle_payment, credit_check,
                       ensure_subscription_payment, package_for, refresh_payment_statuses)
@@ -133,7 +134,8 @@ def get_client(client_id: int, _: User = Depends(require_admin), db: Session = D
     d["posts"] = [p.to_dict() for p in posts]
     d["payments"] = [{**p.to_dict(), "task_title": p.task.title if p.task else None}
                      for p in sorted(c.payments, key=lambda p: p.due_date, reverse=True)]
-    d["tasks"] = [{**t.to_dict(), "assignee_name": t.assignee.name if t.assignee else None}
+    d["tasks"] = [{**t.to_dict(), "assignee_name": t.assignee.name if t.assignee else None,
+                   "assignee_avatar_url": avatar_url(t.assignee) if t.assignee else None}
                   for t in sorted(c.tasks, key=lambda t: t.created_at, reverse=True)[:30]]
     d["work_logs"] = [{
         **log.to_dict(),

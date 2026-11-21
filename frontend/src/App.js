@@ -1,8 +1,9 @@
 import "@/App.css";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { AuthProvider, HOME_REDIRECT_KEY, useAuth } from "@/context/AuthContext";
 import AppShell from "@/components/AppShell";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
@@ -33,7 +34,14 @@ function Protected({ children, admin }) {
 }
 
 function Home() {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    // Pagina iniziale preferita: si apre una volta per sessione, poi la Dashboard resta raggiungibile.
+    let done = true;
+    try { done = sessionStorage.getItem(HOME_REDIRECT_KEY) === "1"; sessionStorage.setItem(HOME_REDIRECT_KEY, "1"); } catch {}
+    if (!done && user?.home_page && user.home_page !== "/") navigate(user.home_page, { replace: true });
+  }, [user, navigate]);
   return isAdmin ? <Dashboard /> : <EmployeeHome />;
 }
 

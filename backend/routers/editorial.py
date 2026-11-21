@@ -8,6 +8,7 @@ from database import get_db
 from google_sync import delete_event, push_post
 from models import Client, Contract, Payment, Post, Task, User, WorkLog
 from security import get_current_user, require_admin
+from avatars import avatar_url
 from services import CREDITS_EXHAUSTED_MSG, apply_task_status, credit_check, sync_task_for_post, task_credit_check
 
 router = APIRouter()
@@ -65,6 +66,7 @@ def post_out(p: Post):
     d["task_id"] = t.id if t else None
     d["task_status"] = t.status if t else None
     d["assignee_name"] = t.assignee.name if t and t.assignee else None
+    d["assignee_avatar_url"] = avatar_url(t.assignee) if t and t.assignee else None
     return d
 
 
@@ -72,6 +74,7 @@ def task_out(t: Task):
     d = t.to_dict()
     d["client_name"] = t.client.name if t.client else None
     d["assignee_name"] = t.assignee.name if t.assignee else None
+    d["assignee_avatar_url"] = avatar_url(t.assignee) if t.assignee else None
     d["post_scheduled_at"] = t.post.scheduled_at.isoformat() if t.post else None
     d["post_content_type"] = t.post.content_type if t.post else None
     d["payment_id"] = t.payments[0].id if t.payments else None

@@ -3,12 +3,12 @@ import { CalendarClock, Hand, Plus, Search, Undo2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Chip, Loading, NativeSelect, PageHeader } from "@/components/common";
+import { Chip, Loading, NativeSelect, PageHeader, UserAvatar } from "@/components/common";
 import TaskFormDialog from "@/pages/TaskFormDialog";
 import CompleteTaskDialog from "@/pages/CompleteTaskDialog";
 import { useAuth } from "@/context/AuthContext";
 import { api, errMsg, useApi } from "@/lib/api";
-import { fmtDate, initials, PRIORITY, TASK_STATUSES, todayISO } from "@/lib/constants";
+import { fmtDate, PRIORITY, TASK_STATUSES, todayISO } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 function TaskCard({ t, me, isAdmin, onClaim, onRelease, onMove, onEdit, onComplete }) {
@@ -28,7 +28,7 @@ function TaskCard({ t, me, isAdmin, onClaim, onRelease, onMove, onEdit, onComple
         <span className={cn("flex items-center gap-1", late && "font-semibold text-rose-600")}><CalendarClock className="h-3.5 w-3.5" />{fmtDate(t.due_date)}</span>
         {t.assignee_name ? (
           <span className="flex items-center gap-1.5" data-testid={`task-assignee-${t.id}`}>
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-700">{initials(t.assignee_name)}</span>
+            <UserAvatar name={t.assignee_name} url={t.assignee_avatar_url} size="xs" />
             {mine ? "Tu" : t.assignee_name.split(" ")[0]}
           </span>
         ) : <span className="italic">Non assegnato</span>}
