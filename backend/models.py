@@ -119,10 +119,16 @@ class Post(SoftDelete, Base):
     status = Column(String(20), default="programmato")  # programmato | consegnato
     cycle_number = Column(Integer)
     google_event_id = Column(String(255), index=True)
+    location = Column(String(255))  # shot list delle sessioni
+    people = Column(Text)
+    video_script_id = Column(Integer, ForeignKey("video_scripts.id"))
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     client = relationship("Client", back_populates="posts")
+    video_script = relationship("VideoScript")
+    shot_items = relationship("ShotListItem", back_populates="post", cascade="all, delete-orphan",
+                              order_by="(ShotListItem.kind, ShotListItem.position, ShotListItem.id)")
     task = relationship("Task", back_populates="post", uselist=False)
 
 
@@ -336,3 +342,20 @@ class SubscriptionHistory(Base):
     source = Column(String(20), nullable=False, default="app")  # app | ricostruito
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=utcnow)
+
+
+class ShotListItem(Base):
+    """Scena (descrizione, inquadratura, durata) o attrezzatura da spuntare durante le riprese."""
+    __tablename__ = "shot_list_items"
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False, index=True)
+    kind = Column(String(20), nullable=False, default="scene")  # scene | equipment
+    position = Column(Integer, nullable=False, default=0)
+    description = Column(String(500), nullable=False)
+    framing = Column(String(120))
+    duration_seconds = Column(Integer)
+    done = Column(Boolean, nullable=False, default=False)
+    done_at = Column(DateTime)
+    done_by = Column(Integer, ForeignKey("users.id"))
+
+    post = relationship("Post", back_populates="shot_items")

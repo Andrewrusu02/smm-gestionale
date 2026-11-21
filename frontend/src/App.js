@@ -22,6 +22,7 @@ import VideoScripts from "@/pages/VideoScripts";
 import AuditLog from "@/pages/AuditLog";
 import Trash from "@/pages/Trash";
 import Expenses from "@/pages/Expenses";
+import ShotList from "@/pages/ShotList";
 
 function Protected({ children, admin }) {
   const { user, isAdmin } = useAuth();
@@ -63,6 +64,7 @@ export default function App() {
           <Route element={<Protected><AppShell /></Protected>}>
             <Route index element={<Home />} />
             <Route path="calendario" element={<CalendarPage />} />
+            <Route path="sessioni/:id" element={<ShotList />} />
             <Route path="task" element={<Tasks />} />
             <Route path="script-idee" element={<VideoScripts />} />
             <Route path="log" element={<Navigate to="/task" replace />} />

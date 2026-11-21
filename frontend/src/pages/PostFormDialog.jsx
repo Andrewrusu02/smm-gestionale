@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Loader2, Trash2, Wand2 } from "lucide-react";
+import { Clapperboard, Loader2, Trash2, Wand2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,6 +16,15 @@ const TASK_PREFIX = {
   grafica: "Creazione Grafica", post: "Preparazione Post", sessione: "Sessione di registrazione",
 };
 
+export function ShotListLink({ post }) {
+  if (!post?.id || post.content_type !== "sessione") return null;
+  return (
+    <Link to={`/sessioni/${post.id}`} className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100" data-testid="open-shotlist">
+      <Clapperboard className="h-4 w-4" />Apri la shot list
+    </Link>
+  );
+}
+
 function PostView({ post }) {
   return (
     <div className="space-y-3 text-sm" data-testid="post-detail-view">
@@ -23,6 +33,7 @@ function PostView({ post }) {
       <p className="text-slate-500">{post.client_name} · {fmtDateTime(post.scheduled_at)} · {post.duration_minutes} min</p>
       {post.description && <p className="whitespace-pre-line rounded-lg bg-slate-50 p-3">{post.description}</p>}
       {post.task_status && <p className="text-xs text-slate-500">Task: <b>{TASK_STATUS_MAP[post.task_status].label}</b> · {post.assignee_name || "non assegnato"}</p>}
+      <ShotListLink post={post} />
     </div>
   );
 }
@@ -95,6 +106,7 @@ export default function PostFormDialog({ open, onOpenChange, post, defaultDate, 
         <DialogHeader><DialogTitle>{!isAdmin ? "Dettaglio contenuto" : post ? "Modifica contenuto" : "Programma contenuto"}</DialogTitle></DialogHeader>
         {!isAdmin ? (post && <PostView post={post} />) : (
           <form onSubmit={submit} className="space-y-4">
+            <ShotListLink post={post} />
             {clients.length === 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Crea prima un cliente per programmare contenuti.</p>}
             <div className="grid grid-cols-2 gap-4">
               <Field label="Cliente *">

@@ -126,6 +126,8 @@ def _purge_objects(db, items):
                     db.query(Payment).filter(Payment.task_id == obj.id).update({"task_id": None}, synchronize_session=False)
                 elif cls is Post:
                     db.query(Task).filter(Task.post_id == obj.id).update({"post_id": None}, synchronize_session=False)
+                elif cls is VideoScript:
+                    db.query(Post).filter(Post.video_script_id == obj.id).update({"video_script_id": None}, synchronize_session=False)
                 elif cls is Contract:
                     db.query(Task).filter(Task.contract_id == obj.id).update({"contract_id": None}, synchronize_session=False)
                     db.query(WorkLog).filter(WorkLog.contract_id == obj.id).update({"contract_id": None}, synchronize_session=False)
