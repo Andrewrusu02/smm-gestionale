@@ -13,6 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { api, errMsg, qs, useApi } from "@/lib/api";
 import { CATEGORIES, categoryOf, CONTENT_TYPES, fmtTime, MEETING_STYLE, parseDate } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useUrlParam } from "@/lib/useUrlParam";
 
 const WEEKDAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
@@ -80,6 +81,7 @@ function GoogleBadge() {
 export default function CalendarPage() {
   const { isAdmin } = useAuth();
   const [cursor, setCursor] = useState(new Date());
+  useUrlParam("date", (v) => { const d = parseDate(v); if (!Number.isNaN(d.getTime())) setCursor(d); });
   const [view, setView] = useState("month");
   const [clientId, setClientId] = useState("");
   const [cats, setCats] = useState([]);

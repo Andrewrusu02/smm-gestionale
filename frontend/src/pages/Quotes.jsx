@@ -7,6 +7,7 @@ import { Chip, ConfirmDialog, EmptyState, Loading, PageHeader } from "@/componen
 import QuoteFormDialog from "@/pages/QuoteFormDialog";
 import { api, errMsg, useApi } from "@/lib/api";
 import { eur, fmtDate } from "@/lib/constants";
+import { useUrlParam } from "@/lib/useUrlParam";
 
 const STATUS = { bozza: ["Bozza", "bg-slate-100 text-slate-700 border-slate-200"], inviato: ["Inviato", "bg-blue-50 text-blue-700 border-blue-200"], accettato: ["Accettato", "bg-emerald-50 text-emerald-700 border-emerald-200"], rifiutato: ["Rifiutato", "bg-rose-50 text-rose-700 border-rose-200"] };
 
@@ -32,6 +33,7 @@ export default function Quotes() {
   const { data: quotes, loading, reload } = useApi("/quotes");
   const { data: clients } = useApi("/clients/basic");
   const [q, setQ] = useState(""); const [open, setOpen] = useState(false); const [editing, setEditing] = useState(null);
+  useUrlParam("q", setQ);
   const list = useMemo(() => (quotes || []).filter((x) => `${x.number} ${x.client_name}`.toLowerCase().includes(q.toLowerCase())), [quotes, q]);
   const remove = async (id) => { try { await api.delete(`/quotes/${id}`); toast.success("Preventivo eliminato"); reload(); } catch (e) { toast.error(errMsg(e)); } };
   return <div data-testid="quotes-page">

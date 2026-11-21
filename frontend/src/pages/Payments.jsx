@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Chip, ConfirmDialog, EmptyState, Field, NativeSelect, PageHeader, StatCard } from "@/components/common";
 import { api, errMsg, qs, useApi } from "@/lib/api";
 import { eur, fmtDate, PAYMENT_STATUS, todayISO } from "@/lib/constants";
+import { useUrlParam } from "@/lib/useUrlParam";
 
 function PaidDialog({ payment, onClose, onDone }) {
   const [date, setDate] = useState(todayISO());
@@ -139,6 +140,7 @@ function InvoiceDialog({ open, onOpenChange, clients, onDone }) {
 
 export default function Payments() {
   const [f, setF] = useState({ status: "", kind: "", period: "", client_id: "" });
+  useUrlParam("client_id", (v) => setF((x) => ({ ...x, client_id: v })));
   const { data, reload } = useApi(`/payments${qs(f)}`);
   const { data: clients } = useApi("/clients/basic");
   const [paying, setPaying] = useState(null);

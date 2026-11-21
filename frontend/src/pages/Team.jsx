@@ -11,6 +11,7 @@ import { Chip, ConfirmDialog, EmptyState, Field, Loading, NativeSelect, PageHead
 import { useAuth } from "@/context/AuthContext";
 import { api, errMsg, useApi } from "@/lib/api";
 import { currentPeriod, eur, fmtDate, periodLabel } from "@/lib/constants";
+import { useUrlParam } from "@/lib/useUrlParam";
 
 const EMPTY = { name: "", email: "", role: "dipendente", password: "", phone: "", job_title: "", hourly_rate: 0, monthly_salary: 0, active: true };
 const LOG_EMPTY = { client_id: "", date: "", description: "", notes: "", worker_payout: 0, client_revenue: 0, team_paid: false };
@@ -269,6 +270,8 @@ export default function Team() {
   const [status, setStatus] = useState("pending");
   const [logPeriod, setLogPeriod] = useState("");
   const [query, setQuery] = useState("");
+  useUrlParam("q", setQuery);
+  useUrlParam("user", setSelectedUser);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [dialog, setDialog] = useState({ open: false, member: null });
   const [logDialog, setLogDialog] = useState({ open: false, log: null });

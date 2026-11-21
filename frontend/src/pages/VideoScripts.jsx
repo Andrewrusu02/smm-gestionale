@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Maximize2, Pencil, Plus, Trash2, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Chip, ConfirmDialog, EmptyState, Loading, NativeSelect, PageHeader } fr
 import VideoScriptDialog, { SCRIPT_STATUSES } from "@/pages/VideoScriptDialog";
 import { api, errMsg, useApi } from "@/lib/api";
 import { fmtDate } from "@/lib/constants";
+import { useUrlParam } from "@/lib/useUrlParam";
 
 const STATUS_STYLE = {
   BOZZA: "border-slate-200 bg-slate-50 text-slate-600", SCRIPT_PRONTO: "border-indigo-200 bg-indigo-50 text-indigo-700",
@@ -20,6 +21,12 @@ export default function VideoScripts({ clientId }) {
   const [filter, setFilter] = useState("");
   const [dialog, setDialog] = useState({ open: false, script: null });
   const [teleprompter, setTeleprompter] = useState(null);
+  const openId = useUrlParam("id", () => {});
+  useEffect(() => {
+    // Dalla ricerca globale: apre direttamente lo script richiesto.
+    const found = openId && (scripts || []).find((s) => String(s.id) === openId);
+    if (found) setDialog({ open: true, script: found });
+  }, [openId, scripts]);
   const visible = useMemo(() => (scripts || []).filter((item) => !filter || String(item.client_id) === filter), [scripts, filter]);
   const grouped = useMemo(() => visible.reduce((groups, item) => {
     const key = item.client_id || "unassigned";

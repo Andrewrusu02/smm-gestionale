@@ -7,6 +7,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/context/AuthContext";
 import { UserAvatar } from "@/components/common";
 import NotificationsBell from "@/components/NotificationsBell";
+import GlobalSearch from "@/components/GlobalSearch";
 import { cn } from "@/lib/utils";
 
 export const ADMIN_NAV = [
@@ -105,7 +106,10 @@ export default function AppShell() {
           <p className="hidden text-sm text-slate-500 md:block" data-testid="topbar-date">
             {new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
-          <NotificationsBell />
+          <div className="flex items-center gap-2">
+            <GlobalSearch />
+            <NotificationsBell />
+          </div>
         </header>
         <main className="mx-auto max-w-[1400px] px-4 py-8 sm:px-8 lg:py-10">
           <Outlet />

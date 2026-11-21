@@ -10,6 +10,7 @@ import { useApi } from "@/lib/api";
 import { eur, PACKAGE_STYLE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useUrlParam } from "@/lib/useUrlParam";
 
 const TABS = [["tutti", "Tutti"], ["abbonamento", "Con abbonamento"]];
 
@@ -49,6 +50,7 @@ export default function Clients() {
   const { data, loading, reload } = useApi("/clients");
   const [tab, setTab] = useState("tutti");
   const [q, setQ] = useState("");
+  useUrlParam("q", setQ);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 

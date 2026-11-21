@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { api, errMsg, useApi } from "@/lib/api";
 import { fmtDate, PRIORITY, TASK_STATUSES, todayISO } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useUrlParam } from "@/lib/useUrlParam";
 
 function TaskCard({ t, me, isAdmin, onClaim, onRelease, onMove, onEdit, onComplete }) {
   const mine = t.assignee_id === me.id;
@@ -63,6 +64,7 @@ export default function Tasks() {
   const { data: clients } = useApi("/clients/basic");
   const { data: users } = useApi("/users/basic");
   const [filter, setFilter] = useState({ q: "", client: "", scope: "tutti" });
+  useUrlParam("q", (v) => setFilter((f) => ({ ...f, q: v })));
   const [dialog, setDialog] = useState({ open: false, task: null });
   const [over, setOver] = useState(null);
 

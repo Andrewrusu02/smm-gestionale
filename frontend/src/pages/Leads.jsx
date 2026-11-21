@@ -7,6 +7,7 @@ import LeadFormDialog from "@/pages/LeadFormDialog";
 import { useApi } from "@/lib/api";
 import { fmtDateTime, LEAD_STATUS, parseDate } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useUrlParam } from "@/lib/useUrlParam";
 
 const TABS = [["attivi", "Attivi"], ["convertito", "Convertiti"], ["perso", "Persi"], ["tutti", "Tutti"]];
 
@@ -42,6 +43,7 @@ export default function Leads() {
   const { data, loading, reload } = useApi("/leads");
   const [tab, setTab] = useState("attivi");
   const [q, setQ] = useState("");
+  useUrlParam("q", setQ);
   const [dialog, setDialog] = useState({ open: false, lead: null });
 
   const list = useMemo(() => (data || []).filter((l) =>
