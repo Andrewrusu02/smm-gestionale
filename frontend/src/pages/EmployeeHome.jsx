@@ -5,6 +5,7 @@ import { Chip, EmptyState, Loading, PageHeader, Panel, StatCard } from "@/compon
 import { useApi } from "@/lib/api";
 import { CONTENT_TYPES, fmtDate, fmtDateTime, TASK_STATUS_MAP } from "@/lib/constants";
 import { useAuth } from "@/context/AuthContext";
+import MyCompensationPanel from "@/components/MyCompensationPanel";
 
 export default function EmployeeHome() {
   const { user } = useAuth();
@@ -15,7 +16,7 @@ export default function EmployeeHome() {
       <PageHeader
         eyebrow="La mia giornata"
         title={`Ciao ${user.name}`}
-        subtitle="I tuoi task in carico, i contenuti della settimana e le ore registrate questo mese."
+        subtitle="I tuoi task in carico, i contenuti della settimana, le ore e i compensi del mese."
         actions={<Button asChild className="rounded-xl bg-indigo-600 hover:bg-indigo-700" data-testid="go-log-button"><Link to="/task"><Clock className="mr-2 h-4 w-4" />Apri WORK TO DO</Link></Button>}
       />
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -24,6 +25,7 @@ export default function EmployeeHome() {
         <StatCard label="Ore nel mese" value={`${data.hours_month} h`} icon={Clock} tone="amber" testId="emp-kpi-hours" className="rise-2" />
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <MyCompensationPanel />
         <Panel title="I miei task" action={<Link to="/task" className="text-xs font-semibold text-indigo-600 hover:underline">Apri bacheca</Link>}>
           {data.my_tasks.length === 0 ? (
             <EmptyState icon={Hand} title="Nessun task in carico" text={`Ci sono ${data.unassigned_count} task disponibili da prendere in carico.`}

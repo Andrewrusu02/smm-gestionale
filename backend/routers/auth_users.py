@@ -274,3 +274,34 @@ def delete_user(user_id: int, admin: User = Depends(require_admin), db: Session 
     db.delete(u)
     db.commit()
     return {"ok": True, "deactivated": False}
+
+
+@router.get("/me/compensation")
+def my_compensation(year: Optional[int] = None, month: Optional[int] = None,
+                    user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Compensi del collaboratore collegato (solo i suoi): maturati nel mese, da ricevere e ricevuti."""
+    start, nxt = _month_range(year, month)
+    logs = db.query(WorkLog).filter(WorkLog.user_id == user.id).order_by(WorkLog.date.desc(), WorkLog.id.desc()).all()
+
+    def row(w):
+        return {"id": w.id, "date": w.date.isoformat(), "title": w.task_title or w.description,
+                "client_name": w.client.name if w.client else None, "amount": round(w.worker_expense or 0, 2),
+                "hours": w.hours or 0, "paid": bool(w.team_paid),
+                "paid_at": w.team_paid_at.isoformat() if w.team_paid_at else None}
+
+    month_logs = [w for w in logs if start <= w.date < nxt]
+    pending = [w for w in logs if not w.team_paid and (w.worker_expense or 0) > 0]
+    # Ricevuti nel mese: saldati con data di saldo nel mese (per i saldi più vecchi senza data, la data del lavoro).
+    received = [w for w in logs if w.team_paid and start <= (w.team_paid_at or w.date) < nxt]
+    return {
+        "period": f"{start.year}-{start.month:02d}",
+        "accrued_month": round(sum(w.worker_expense or 0 for w in month_logs), 2),
+        "accrued_count": len(month_logs),
+        "pending_total": round(sum(w.worker_expense or 0 for w in pending), 2),
+        "pending_count": len(pending),
+        "received_month": round(sum(w.worker_expense or 0 for w in received), 2),
+        "received_count": len(received),
+        "received_total": round(sum(w.worker_expense or 0 for w in logs if w.team_paid), 2),
+        "month_logs": [row(w) for w in month_logs],
+        "pending_logs": [row(w) for w in pending],
+    }
