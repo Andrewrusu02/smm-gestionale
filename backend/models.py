@@ -285,3 +285,19 @@ class AuditLog(Base):
     before_json = Column(Text)
     after_json = Column(Text)
     summary = Column(String(255))
+
+
+class Expense(Base):
+    """Spesa generale. ``date`` è la data della spesa una tantum o l'inizio di quella ricorrente."""
+    __tablename__ = "expenses"
+    id = Column(Integer, primary_key=True)
+    title = Column(String(160), nullable=False)
+    category = Column(String(40), nullable=False, default="altro", index=True)
+    amount = Column(Float, nullable=False, default=0)
+    kind = Column(String(20), nullable=False, default="one_off")  # recurring | one_off
+    date = Column(Date, nullable=False, index=True)
+    frequency = Column(String(20))  # monthly | quarterly | yearly (solo ricorrenti)
+    end_date = Column(Date)
+    notes = Column(Text)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

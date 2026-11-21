@@ -9,7 +9,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from database import get_db
 from google_sync import get_setting
-from models import Client, Lead, Payment, Task, User, WorkLog
+from expenses import total_in_month
+from models import Client, Expense, Lead, Payment, Task, User, WorkLog
 from security import get_current_user, require_admin
 from trash import soft_delete
 from services import (PACKAGE_KEYS, PACKAGES, client_usage, month_bounds, package_for, period_of,
@@ -470,9 +471,12 @@ def dashboard(months: int = 6, month: Optional[int] = None, year: Optional[int] 
             rev_sub[k] += revenue
         else:
             rev_jobs[k] += revenue
+    expenses = db.query(Expense).all()
+    general = {k: total_in_month(expenses, *map(int, k.split("-"))) for k in periods}
     series = [{
         "period": k, "entrate": round(rev[k], 2), "abbonamenti": round(rev_sub[k], 2), "lavori_singoli": round(rev_jobs[k], 2),
         "incassato": round(cash[k], 2), "spese": round(cost[k], 2), "utile": round(rev[k] - cost[k], 2),
+        "spese_generali": general[k], "utile_reale": round(rev[k] - cost[k] - general[k], 2),
     } for k in periods]
 
     active = db.query(Client).filter(Client.active.is_(True)).all()
@@ -507,6 +511,8 @@ def dashboard(months: int = 6, month: Optional[int] = None, year: Optional[int] 
             "entrate_mese": cur["incassato"], "fatturato_mese": cur["entrate"],
             # Utile per competenza: stessa formula del grafico (fatturato del mese − compensi del mese).
             "spese_mese": cur["spese"], "utile_mese": cur["utile"],
+            # Utile reale: fatturato del mese − compensi del team − spese generali dell'agenzia del mese.
+            "spese_generali_mese": cur["spese_generali"], "utile_reale_mese": cur["utile_reale"],
             "incassato_mese": cur["incassato"], "mrr": mrr,
             "periodo_selezionato": current,
             "clienti_attivi": len(active), "abbonamenti_attivi": sum(d["value"] for d in dist),

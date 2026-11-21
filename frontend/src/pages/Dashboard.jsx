@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, Banknote, KanbanSquare, PiggyBank, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import { AlertTriangle, Banknote, KanbanSquare, PiggyBank, Scale, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -45,7 +45,9 @@ function ProfitChart({ series }) {
         <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
         <YAxis tickLine={false} axisLine={false} fontSize={12} tickFormatter={(v) => `€${v}`} width={60} />
         <Tooltip formatter={(v) => eur(v)} contentStyle={tooltipStyle} />
-        <Area type="monotone" dataKey="utile" name="Utile netto" stroke="#6366F1" strokeWidth={2.5} fill="url(#utile)" />
+        <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+        <Area type="monotone" dataKey="utile" name="Utile (fatturato − compensi)" stroke="#6366F1" strokeWidth={2.5} fill="url(#utile)" />
+        <Area type="monotone" dataKey="utile_reale" name="Utile reale (− spese generali)" stroke="#F59E0B" strokeWidth={2} fill="none" strokeDasharray="5 4" />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -141,13 +143,16 @@ export default function Dashboard() {
         <StatCard label="Spese da sempre" value={eur(data.financial_stats?.spese_totali)} hint="Compensi registrati al team" icon={TrendingDown} tone="rose" testId="financial-total-expenses" className="rise-1" />
         <StatCard label="Utile da sempre" value={eur(data.financial_stats?.utile_netto)} hint="Entrate − spese" icon={PiggyBank} tone="indigo" testId="financial-net-profit" className="rise-2" />
       </div>
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <div className="relative">
           <StatCard label={`Fatturato di ${periodLabel(period, true)}`} value={eur(k.fatturato_mese)} hint={`Incassato nel mese: ${eur(k.incassato_mese)}`} icon={TrendingUp} tone="emerald" testId="kpi-entrate" />
           {loading && <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/80"><span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" aria-label="Aggiornamento entrate" /></div>}
         </div>
         <StatCard label="Spese del mese" value={eur(k.spese_mese)} hint="Compensi dei lavori del mese" icon={TrendingDown} tone="rose" testId="kpi-spese" className="rise-1" />
         <StatCard label="Utile del mese" value={eur(k.utile_mese)} hint="Fatturato − spese del mese" icon={PiggyBank} tone="indigo" testId="kpi-utile" className="rise-2" />
+        <Link to="/spese" className="block" data-testid="kpi-utile-reale-link">
+          <StatCard label="Utile reale del mese" value={eur(k.utile_reale_mese)} hint={`Fatturato − compensi − ${eur(k.spese_generali_mese)} di spese generali`} icon={Scale} tone={k.utile_reale_mese < 0 ? "rose" : "amber"} testId="kpi-utile-reale" className="h-full rise-2" />
+        </Link>
         <StatCard label="Valore abbonamenti attivi" value={eur(k.mrr)} hint={`${k.abbonamenti_attivi} abbonamenti attivi`} icon={Banknote} tone="slate" testId="kpi-mrr" className="rise-3" />
         <StatCard label="Pagamenti in ritardo" value={k.ritardi_count} hint={eur(k.ritardi_importo)} icon={AlertTriangle} tone={k.ritardi_count ? "rose" : "slate"} testId="kpi-ritardi" className="rise-4" />
       </div>

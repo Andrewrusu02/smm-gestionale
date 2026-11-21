@@ -21,6 +21,7 @@ import Reports from "@/pages/Reports";
 import VideoScripts from "@/pages/VideoScripts";
 import AuditLog from "@/pages/AuditLog";
 import Trash from "@/pages/Trash";
+import Expenses from "@/pages/Expenses";
 
 function Protected({ children, admin }) {
   const { user, isAdmin } = useAuth();
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="team" element={<Protected admin><Team /></Protected>} />
             <Route path="registro" element={<Protected admin><AuditLog /></Protected>} />
             <Route path="cestino" element={<Protected admin><Trash /></Protected>} />
+            <Route path="spese" element={<Protected admin><Expenses /></Protected>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
