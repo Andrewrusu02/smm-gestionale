@@ -220,3 +220,18 @@ def worklog_cost(user, hours, fixed_cost) -> float:
     if fixed_cost is not None:
         return round(fixed_cost, 2)
     return round((hours or 0) * (user.hourly_rate or 0), 2)
+
+
+def final_price(list_price, discount_type=None, discount_value=0) -> float:
+    """Prezzo finale di un lavoro extra: listino meno lo sconto (in % o in €), mai sotto zero."""
+    base = float(list_price or 0)
+    value = float(discount_value or 0)
+    if discount_type == "percent":
+        if not 0 <= value <= 100:
+            raise ValueError("Lo sconto in percentuale deve essere tra 0 e 100")
+        base -= base * value / 100
+    elif discount_type == "amount":
+        if value < 0 or value > base:
+            raise ValueError("Lo sconto in euro non può superare il prezzo di listino")
+        base -= value
+    return round(max(base, 0), 2)

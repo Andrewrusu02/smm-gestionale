@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import declared_attr, relationship, synonym
 from database import Base
 
@@ -144,7 +144,10 @@ class Task(SoftDelete, Base):
     assigned_to_id = Column(Integer, ForeignKey("users.id"), index=True)
     created_by = Column(Integer, ForeignKey("users.id"))
     due_date = Column(Date)
-    price_charged_to_client = Column(Float, nullable=False, default=0)
+    price_charged_to_client = Column(Float, nullable=False, default=0)  # prezzo finale (dopo lo sconto)
+    list_price = Column(Float)  # prezzo di listino
+    discount_type = Column(String(10))  # percent | amount
+    discount_value = Column(Float, nullable=False, default=0)
     auto_generated = Column(Boolean, default=False)
     completed_at = Column(DateTime)
     created_at = Column(DateTime, default=utcnow)
@@ -300,4 +303,16 @@ class Expense(Base):
     end_date = Column(Date)
     notes = Column(Text)
     created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class ClientPriceList(Base):
+    """Listino personalizzato: prezzo di un lavoro extra per cliente e categoria di servizio."""
+    __tablename__ = "client_price_list"
+    __table_args__ = (UniqueConstraint("client_id", "category_service", name="ux_client_price_list"),)
+    id = Column(Integer, primary_key=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    category_service = Column(String(40), nullable=False)
+    price = Column(Float, nullable=False, default=0)
+    notes = Column(String(255))
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

@@ -10,7 +10,8 @@ from models import Client, Contract, Payment, Post, Task, User, WorkLog
 from security import get_current_user, require_admin
 from avatars import avatar_url
 from trash import soft_delete
-from services import CREDITS_EXHAUSTED_MSG, apply_task_status, credit_check, sync_task_for_post, task_credit_check
+from services import (CREDITS_EXHAUSTED_MSG, apply_task_status, credit_check, final_price, sync_task_for_post,
+                      task_credit_check)
 
 router = APIRouter()
 ContentType = Literal["reel", "storia", "carosello", "grafica", "post", "sessione"]
@@ -42,6 +43,10 @@ class TaskIn(BaseModel):
     activity_type: Literal["SINGLE_JOB", "SUBSCRIPTION"] = "SINGLE_JOB"
     contract_id: Optional[int] = None
     subscription_included: bool = False
+    # Prezzo con sconto: se list_price è indicato, il prezzo finale viene calcolato qui.
+    list_price: Optional[float] = Field(default=None, ge=0)
+    discount_type: Optional[Literal["percent", "amount"]] = None
+    discount_value: float = Field(default=0, ge=0)
 
 
 class TaskPatch(BaseModel):
@@ -58,6 +63,9 @@ class TaskPatch(BaseModel):
     activity_type: Optional[Literal["SINGLE_JOB", "SUBSCRIPTION"]] = None
     contract_id: Optional[int] = None
     subscription_included: Optional[bool] = None
+    list_price: Optional[float] = Field(default=None, ge=0)
+    discount_type: Optional[Literal["percent", "amount"]] = None
+    discount_value: Optional[float] = Field(default=None, ge=0)
 
 
 def post_out(p: Post):
@@ -211,16 +219,18 @@ def create_task(body: TaskIn, user: User = Depends(get_current_user), db: Sessio
     _check_assignee(db, user, body.assignee_id)
     client = _client_or_404(db, body.client_id) if body.client_id else None
     data = body.model_dump(exclude={"status", "activity_type", "subscription_included"})
+    _price_fields(data, data)
     if data.get("contract_id"):
         contract = db.get(Contract, data["contract_id"])
         if not client or not contract or contract.client_id != client.id or contract.status != "ACTIVE":
             raise HTTPException(status_code=422, detail="L'abbonamento selezionato non è attivo per questo cliente")
     credit = task_credit_check(db, client, body.category_service) if client else None
     included = bool(credit and credit["remaining"] > 0)
-    if not included and body.price_charged_to_client <= 0:
+    if not included and data["price_charged_to_client"] <= 0:
         raise HTTPException(status_code=422, detail="Inserisci un prezzo per il Lavoro Extra")
     if included:
         data["price_charged_to_client"] = 0
+        data["list_price"], data["discount_type"], data["discount_value"] = None, None, 0
     data["subscription_included"] = included
     data["activity_type"] = "SUBSCRIPTION" if included else "SINGLE_JOB"
     data["cycle_number"] = (client.cycle_number or 1) if included else None
@@ -234,6 +244,23 @@ def create_task(body: TaskIn, user: User = Depends(get_current_user), db: Sessio
                        period=(t.due_date or date.today()).strftime("%Y-%m"), status="in_attesa"))
     db.commit()
     return task_out(t)
+
+
+def _price_fields(source: dict, out: dict):
+    """Listino, sconto e prezzo finale. Senza listino (vecchi client) il prezzo indicato è anche il listino."""
+    if source.get("list_price") is not None:
+        try:
+            out["price_charged_to_client"] = final_price(source["list_price"], source.get("discount_type"),
+                                                         source.get("discount_value") or 0)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        out["list_price"] = source["list_price"]
+        out["discount_type"] = source.get("discount_type") if source.get("discount_value") else None
+        out["discount_value"] = (source.get("discount_value") or 0) if out["discount_type"] else 0
+    else:
+        price = source.get("price_charged_to_client") or 0
+        out["list_price"] = price or None
+        out["discount_type"], out["discount_value"] = None, 0
 
 
 def _task_for_edit(db, task_id, user: User) -> Task:
@@ -256,6 +283,13 @@ def update_task(task_id: int, body: TaskPatch, user: User = Depends(get_current_
     new_status = data.pop("status", None)
     if new_status == "completato":
         raise HTTPException(status_code=409, detail="Usa la finestra Completa per registrare il compenso dell'operatore")
+    if {"list_price", "discount_type", "discount_value", "price_charged_to_client"} & data.keys():
+        current = {"list_price": t.list_price, "discount_type": t.discount_type, "discount_value": t.discount_value or 0,
+                   "price_charged_to_client": t.price_charged_to_client}
+        if {"list_price", "discount_type", "discount_value"} & data.keys():
+            _price_fields({**current, **data}, data)
+        else:  # solo il prezzo (form precedenti): diventa anche il listino, senza sconto
+            _price_fields({"price_charged_to_client": data["price_charged_to_client"]}, data)
     for k, v in data.items():
         setattr(t, k, v)
     if {"price_charged_to_client", "subscription_included"} & data.keys():

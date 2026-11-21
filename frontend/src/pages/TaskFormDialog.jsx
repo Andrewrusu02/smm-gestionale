@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog, Field, NativeSelect } from "@/components/common";
 import { useAuth } from "@/context/AuthContext";
 import { api, errMsg } from "@/lib/api";
-import { PRIORITY, TASK_STATUSES } from "@/lib/constants";
+import { eur, PRIORITY, TASK_STATUSES } from "@/lib/constants";
 
-const SERVICE_CATEGORIES = [
+export const SERVICE_CATEGORIES = [
   ["reel", "Reel"],
   ["carosello", "Carosello"],
   ["grafica", "Grafica"],
@@ -18,18 +18,47 @@ const SERVICE_CATEGORIES = [
   ["copywriting_script", "Copywriting / Script"],
   ["altro", "Altro"],
 ];
-const EMPTY = { title: "", description: "", client_id: "", category_service: "", status: "da_fare", priority: "media", assignee_id: "", start_date: "", due_date: "", price_charged_to_client: "" };
+const EMPTY = { title: "", description: "", client_id: "", category_service: "", status: "da_fare", priority: "media", assignee_id: "", start_date: "", due_date: "", price_charged_to_client: "", list_price: "", discount_type: "", discount_value: "" };
+
+export function computeFinalPrice(listPrice, discountType, discountValue) {
+  const base = Number(listPrice) || 0;
+  const value = Number(discountValue) || 0;
+  if (discountType === "percent") return Math.max(0, Math.round((base - (base * value) / 100) * 100) / 100);
+  if (discountType === "amount") return Math.max(0, Math.round((base - value) * 100) / 100);
+  return base;
+}
 
 export default function TaskFormDialog({ open, onOpenChange, task, clients, users, clientId, onSaved }) {
   const { user, isAdmin } = useAuth();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
 
+  const priceTouched = useRef(false);
   useEffect(() => {
-    if (open) setForm(task ? { ...EMPTY, ...Object.fromEntries(Object.entries(task).map(([k, v]) => [k, v ?? ""])) } : { ...EMPTY, client_id: clientId || "" });
+    if (!open) return;
+    priceTouched.current = Boolean(task);
+    if (task) {
+      const f = { ...EMPTY, ...Object.fromEntries(Object.entries(task).map(([k, v]) => [k, v ?? ""])) };
+      if (f.list_price === "" && task.price_charged_to_client) f.list_price = task.price_charged_to_client;
+      if (!task.discount_type) f.discount_value = "";
+      setForm(f);
+    } else setForm({ ...EMPTY, client_id: clientId || "" });
   }, [open, task, clientId]);
 
+  // Listino personalizzato del cliente: precompila il prezzo finché non viene scritto a mano.
+  useEffect(() => {
+    if (!open || task || priceTouched.current || !form.client_id || !form.category_service) return undefined;
+    let alive = true;
+    api.get("/price-list/suggest", { params: { client_id: form.client_id, category_service: form.category_service } })
+      .then(({ data }) => {
+        if (alive && !priceTouched.current && data.price != null) setForm((f) => ({ ...f, list_price: data.price, fromPriceList: true }));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [open, task, form.client_id, form.category_service]);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
+  const setPrice = (k) => (e) => { priceTouched.current = true; setForm((f) => ({ ...f, [k]: e.target.value, fromPriceList: false })); };
   const setAssigneeToMe = (e) => setForm((f) => ({ ...f, assignee_id: e.target.checked ? user.id : "" }));
   const canDelete = task && (isAdmin || task.created_by === user.id);
   const selectedClient = (clients || []).find((c) => String(c.id) === String(form.client_id));
@@ -41,16 +70,28 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
     ? Boolean(task.subscription_included) || fromCalendar
     : Boolean(selectedClient?.active_subscription && selectedUsage?.remaining > 0);
 
+  const finalPrice = computeFinalPrice(form.list_price, form.discount_type, form.discount_value);
+  const discountError = form.discount_type === "percent" && Number(form.discount_value) > 100
+    ? "Lo sconto non può superare il 100%"
+    : form.discount_type === "amount" && Number(form.discount_value) > (Number(form.list_price) || 0)
+    ? "Lo sconto non può superare il prezzo di listino" : "";
+
   const submit = async (e) => {
     e.preventDefault();
+    if (!isIncluded && discountError) return toast.error(discountError);
     setSaving(true);
     const body = {
       title: form.title, description: form.description || null, client_id: form.client_id ? Number(form.client_id) : null,
       category_service: form.category_service || null,
       status: form.status, priority: form.priority, assignee_id: form.assignee_id ? Number(form.assignee_id) : null,
       start_date: form.start_date || null, due_date: form.due_date || null,
-      price_charged_to_client: isIncluded ? 0 : Number(form.price_charged_to_client),
+      price_charged_to_client: isIncluded ? 0 : finalPrice,
     };
+    if (!isIncluded) {
+      body.list_price = Number(form.list_price) || 0;
+      body.discount_type = form.discount_type && Number(form.discount_value) > 0 ? form.discount_type : null;
+      body.discount_value = body.discount_type ? Number(form.discount_value) : 0;
+    }
     try {
       if (task) await api.put(`/tasks/${task.id}`, body);
       else await api.post("/tasks", body);
@@ -97,9 +138,32 @@ export default function TaskFormDialog({ open, onOpenChange, task, clients, user
             </Field>
             <Field label="Data inizio"><Input type="date" value={form.start_date} onChange={set("start_date")} /></Field>
             <Field label="Scadenza"><Input type="date" value={form.due_date} onChange={set("due_date")} data-testid="task-due-input" /></Field>
-            <Field label="Prezzo pattuito col Cliente (€)" hint="Entrata da incassare; non è il compenso del collaboratore">
-              <Input type="number" min={0} step="0.01" required={!isIncluded} disabled={isIncluded} value={isIncluded ? 0 : form.price_charged_to_client} onChange={set("price_charged_to_client")} data-testid="task-price-input" />
-            </Field>
+            {isIncluded ? (
+              <Field label="Prezzo al cliente (€)" hint="Incluso nell'abbonamento"><Input type="number" disabled value={0} data-testid="task-price-input" /></Field>
+            ) : (
+              <div className="col-span-2 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-3" data-testid="task-pricing">
+                <Field label="Prezzo di listino (€)" hint={form.fromPriceList ? "Dal listino del cliente" : "Entrata da incassare, non il compenso"}>
+                  <Input type="number" min={0} step="0.01" required value={form.list_price} onChange={setPrice("list_price")} data-testid="task-list-price-input" />
+                </Field>
+                <Field label="Sconto">
+                  <div className="flex gap-1">
+                    <NativeSelect value={form.discount_type} onChange={setPrice("discount_type")} className="w-20 px-2" data-testid="task-discount-type">
+                      <option value="">—</option><option value="percent">%</option><option value="amount">€</option>
+                    </NativeSelect>
+                    <Input type="number" min={0} step="0.01" disabled={!form.discount_type} value={form.discount_value} onChange={setPrice("discount_value")} data-testid="task-discount-value" />
+                  </div>
+                </Field>
+                <Field label="Prezzo finale">
+                  <div className={`flex h-10 items-center rounded-lg border px-3 font-num font-bold ${discountError ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-900"}`} data-testid="task-final-price">
+                    {eur(finalPrice)}
+                  </div>
+                </Field>
+                {discountError && <p className="text-xs font-semibold text-rose-600 sm:col-span-3">{discountError}</p>}
+                {!discountError && form.discount_type && Number(form.discount_value) > 0 && (
+                  <p className="text-xs text-slate-500 sm:col-span-3">Il pagamento collegato userà il prezzo finale scontato.</p>
+                )}
+              </div>
+            )}
             {(form.category_service || fromCalendar) && (
               <p className={`col-span-2 rounded-lg px-3 py-2 text-sm font-medium ${isIncluded ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`} data-testid="task-billing-mode">
                 {fromCalendar

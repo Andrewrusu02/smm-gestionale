@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Chip, ConfirmDialog, Loading, PageHeader, Panel, UserAvatar } from "@/components/common";
 import PackageUsage from "@/components/PackageUsage";
+import PriceListPanel from "@/components/PriceListPanel";
 import ClientFormDialog from "@/pages/ClientFormDialog";
 import { api, errMsg, useApi } from "@/lib/api";
 import VideoScripts from "@/pages/VideoScripts";
@@ -130,6 +131,7 @@ export default function ClientDetail() {
               {c.notes && <p className="whitespace-pre-line rounded-lg bg-slate-50 p-3 text-xs">{c.notes}</p>}
             </div>
           </Panel>
+          <PriceListPanel clientId={c.id} />
           <Panel title="Pagamenti" action={<Link to="/pagamenti" className="text-xs font-semibold text-indigo-600 hover:underline">Tutti</Link>}>
             {!c.payments?.length ? <p className="text-sm text-slate-500">Nessun pagamento.</p> : (
               <ul className="divide-y divide-slate-100" data-testid="client-payments-list">
