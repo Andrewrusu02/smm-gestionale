@@ -17,12 +17,15 @@ import { useUrlParam } from "@/lib/useUrlParam";
 
 const WEEKDAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
-function PostPill({ p, onClick, full }) {
+function PostPill({ p, onClick, full, draggable, moving }) {
   const t = CATEGORIES[categoryOf(p.content_type)];
   const ct = CONTENT_TYPES[p.content_type];
   return (
     <button onClick={(e) => { e.stopPropagation(); onClick(p); }} data-testid={`calendar-post-${p.id}`} data-category={categoryOf(p.content_type)}
-      className={cn("flex w-full items-center gap-1.5 truncate rounded-md border px-1.5 py-1 text-left text-[11px] font-medium transition-transform hover:scale-[1.02]", t.chip, p.status === "consegnato" && "opacity-60 line-through")}>
+      draggable={draggable}
+      onDragStart={(e) => { e.dataTransfer.setData("application/x-smm-post", String(p.id)); e.dataTransfer.effectAllowed = "move"; }}
+      title={draggable ? "Trascina su un altro giorno per spostarlo" : undefined}
+      className={cn("flex w-full items-center gap-1.5 truncate rounded-md border px-1.5 py-1 text-left text-[11px] font-medium transition-transform hover:scale-[1.02]", t.chip, p.status === "consegnato" && "opacity-60 line-through", draggable && "cursor-grab active:cursor-grabbing", moving && "animate-pulse")}>
       <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", t.dot)} />
       <span className="font-num shrink-0">{fmtTime(p.scheduled_at)}</span>
       {p.content_type !== "sessione" && <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider opacity-70">{ct.label}</span>}
@@ -99,7 +102,7 @@ export default function CalendarPage() {
   const startISO = format(range.start, "yyyy-MM-dd");
   const endISO = format(range.end, "yyyy-MM-dd");
   const path = `/posts${qs({ start: startISO, end: endISO, client_id: clientId, content_type: typeSel })}`;
-  const { data: posts, reload } = useApi(path);
+  const { data: posts, reload, setData: setPosts } = useApi(path);
   const { data: tasks, reload: reloadTasks } = useApi(`/tasks${qs({ client_id: clientId })}`);
   const { data: meetings, reload: reloadMeetings } = useApi(isAdmin ? `/leads?start=${startISO}&end=${endISO}` : null);
 
@@ -120,6 +123,32 @@ export default function CalendarPage() {
   const toggleCat = (k) => setCats((t) => (t.includes(k) ? t.filter((x) => x !== k) : [...t, k]));
   const openNew = (d) => isAdmin && setDialog({ open: true, post: null, date: d });
   const openPost = (p) => setDialog({ open: true, post: p, date: null });
+  const [dropDay, setDropDay] = useState(null);
+  const [movingId, setMovingId] = useState(null);
+  const dropOn = async (e, d) => {
+    e.preventDefault();
+    setDropDay(null);
+    const id = Number(e.dataTransfer.getData("application/x-smm-post"));
+    const p = (posts || []).find((x) => x.id === id);
+    if (!p) return;
+    const newDate = format(d, "yyyy-MM-dd");
+    if (p.scheduled_at.slice(0, 10) === newDate) return;
+    // Spostamento immediato a schermo; se il server o Google rifiutano si torna indietro.
+    const previous = posts;
+    setPosts((list) => list.map((x) => (x.id === id ? { ...x, scheduled_at: `${newDate}${x.scheduled_at.slice(10)}` } : x)));
+    setMovingId(id);
+    try {
+      const { data: moved } = await api.post(`/posts/${id}/move`, { date: newDate });
+      setPosts((list) => list.map((x) => (x.id === id ? { ...x, ...moved } : x)));
+      toast.success(`Spostato a ${format(d, "EEEE d MMMM", { locale: it })}${moved.google_updated ? " · Google Calendar aggiornato" : ""}`);
+      reloadTasks();
+    } catch (err) {
+      setPosts(previous);
+      toast.error(`Spostamento annullato: ${errMsg(err)}`);
+    } finally {
+      setMovingId(null);
+    }
+  };
 
   const title = view === "month"
     ? format(cursor, "LLLL yyyy", { locale: it })
@@ -176,15 +205,19 @@ export default function CalendarPage() {
             const limit = view === "month" ? 3 : 50;
             return (
               <div key={d.toISOString()} onClick={() => openNew(d)} data-testid={`calendar-day-${format(d, "yyyy-MM-dd")}`}
+                onDragOver={isAdmin ? (e) => { if (e.dataTransfer.types.includes("application/x-smm-post")) { e.preventDefault(); setDropDay(d.toISOString()); } } : undefined}
+                onDragLeave={isAdmin ? () => setDropDay((x) => (x === d.toISOString() ? null : x)) : undefined}
+                onDrop={isAdmin ? (e) => dropOn(e, d) : undefined}
                 className={cn("group border-b border-r border-slate-100 p-1.5 transition-colors", view === "month" ? "min-h-[118px]" : "min-h-[420px]",
-                  isAdmin && "cursor-pointer hover:bg-indigo-50/40", view === "month" && !isSameMonth(d, cursor) && "bg-slate-50/70")}>
+                  isAdmin && "cursor-pointer hover:bg-indigo-50/40", view === "month" && !isSameMonth(d, cursor) && "bg-slate-50/70",
+                  dropDay === d.toISOString() && "bg-indigo-50 ring-2 ring-inset ring-indigo-300")}>
                 {view === "month" && (
                   <span className={cn("font-num mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs", isToday(d) ? "bg-indigo-600 font-bold text-white" : isSameMonth(d, cursor) ? "text-slate-700" : "text-slate-300")}>{format(d, "d")}</span>
                 )}
                 {view === "week" && isToday(d) && <span className="mb-1 block text-[10px] font-bold uppercase text-indigo-600">Oggi</span>}
                 <div className="space-y-1">
                   {items.slice(0, limit).map((e) => e.kind === "post"
-                    ? <PostPill key={`p${e.item.id}`} p={e.item} onClick={openPost} full={view === "week"} />
+                    ? <PostPill key={`p${e.item.id}`} p={e.item} onClick={openPost} full={view === "week"} draggable={isAdmin} moving={movingId === e.item.id} />
                     : e.kind === "meeting" ? <MeetingPill key={`m${e.item.id}`} m={e.item} onClick={openMeeting} full={view === "week"} /> : <TaskPill key={`t${e.item.id}`} task={e.item} full={view === "week"} />)}
                   {items.length > limit && <p className="px-1 text-[11px] font-semibold text-slate-500">+{items.length - limit} altri</p>}
                 </div>

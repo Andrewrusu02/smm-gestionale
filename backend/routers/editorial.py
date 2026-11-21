@@ -398,3 +398,38 @@ def my_overview(user: User = Depends(get_current_user), db: Session = Depends(ge
         "upcoming_posts": [post_out(p) for p in upcoming],
         "unassigned_count": unassigned,
     }
+
+
+class MoveIn(BaseModel):
+    date: date
+
+
+@router.post("/posts/{post_id}/move")
+def move_post(post_id: int, body: MoveIn, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Sposta un contenuto su un altro giorno mantenendo l'ora; aggiorna il task collegato e l'evento Google.
+
+    L'evento Google viene aggiornato subito (non in background): se l'aggiornamento fallisce, lo spostamento
+    viene annullato e il client riceve un errore da mostrare.
+    """
+    from google_sync import _push, get_service
+    p = db.get(Post, post_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Contenuto non trovato")
+    old = p.scheduled_at
+    p.scheduled_at = datetime.combine(body.date, old.time())
+    if p.client:
+        sync_task_for_post(db, p, p.client.name)
+    db.flush()
+    google = False
+    try:
+        svc = get_service(db)
+        if svc:
+            _push(db, svc, p)
+            google = True
+    except Exception as e:  # noqa: BLE001
+        db.rollback()
+        raise HTTPException(status_code=502, detail=f"Google Calendar non ha accettato lo spostamento: {e}")
+    db.commit()
+    out = post_out(p)
+    out["google_updated"] = google
+    return out
