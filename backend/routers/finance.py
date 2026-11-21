@@ -11,6 +11,7 @@ from database import get_db
 from google_sync import get_setting
 from models import Client, Lead, Payment, Task, User, WorkLog
 from security import get_current_user, require_admin
+from trash import soft_delete
 from services import (PACKAGE_KEYS, PACKAGES, client_usage, month_bounds, package_for, period_of,
                       refresh_payment_statuses, shift_period, worklog_cost)
 
@@ -219,8 +220,8 @@ def mark_unpaid(pid: int, _: User = Depends(require_admin), db: Session = Depend
 
 
 @router.delete("/payments/{pid}")
-def delete_payment(pid: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
-    db.delete(_payment(db, pid))
+def delete_payment(pid: int, user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    soft_delete(db, _payment(db, pid), user)
     db.commit()
     return {"ok": True}
 
@@ -361,7 +362,7 @@ def update_worklog(wid: int, body: WorkLogUpdate, user: User = Depends(get_curre
 
 @router.delete("/worklogs/{wid}")
 def delete_worklog(wid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    db.delete(_own_worklog(db, wid, user))
+    soft_delete(db, _own_worklog(db, wid, user), user)
     db.commit()
     return {"ok": True}
 
@@ -404,7 +405,7 @@ def update_work_log(wid: int, body: WorkLogUpdate, user: User = Depends(get_curr
 
 @router.delete("/work-logs/{wid}")
 def delete_work_log(wid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    db.delete(_own_worklog(db, wid, user))
+    soft_delete(db, _own_worklog(db, wid, user), user)
     db.commit()
     return {"ok": True}
 

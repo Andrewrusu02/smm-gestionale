@@ -1,11 +1,21 @@
 from datetime import datetime, timezone
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import relationship, synonym
+from sqlalchemy.orm import declared_attr, relationship, synonym
 from database import Base
 
 
 def utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class SoftDelete:
+    """Elementi che finiscono nel cestino invece di essere cancellati (vedi trash.py)."""
+    deleted_at = Column(DateTime, index=True)
+    deleted_batch = Column(String(64))
+
+    @declared_attr
+    def deleted_by(cls):
+        return Column(Integer, ForeignKey("users.id"))
 
 
 class User(Base):
@@ -27,7 +37,7 @@ class User(Base):
     created_at = Column(DateTime, default=utcnow)
 
 
-class Client(Base):
+class Client(SoftDelete, Base):
     __tablename__ = "clients"
     id = Column(Integer, primary_key=True)
     name = Column(String(160), nullable=False)
@@ -62,7 +72,7 @@ class Client(Base):
     work_logs = relationship("WorkLog", back_populates="client", cascade="all, delete-orphan")
 
 
-class Contract(Base):
+class Contract(SoftDelete, Base):
     __tablename__ = "contracts"
     id = Column(Integer, primary_key=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False, index=True)
@@ -81,7 +91,7 @@ class Contract(Base):
     work_logs = relationship("WorkLog", back_populates="contract")
 
 
-class VideoScript(Base):
+class VideoScript(SoftDelete, Base):
     __tablename__ = "video_scripts"
     id = Column(Integer, primary_key=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False, index=True)
@@ -97,7 +107,7 @@ class VideoScript(Base):
     client = relationship("Client", back_populates="video_scripts", foreign_keys=[client_id])
 
 
-class Post(Base):
+class Post(SoftDelete, Base):
     __tablename__ = "posts"
     id = Column(Integer, primary_key=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False, index=True)
@@ -116,7 +126,7 @@ class Post(Base):
     task = relationship("Task", back_populates="post", uselist=False)
 
 
-class Task(Base):
+class Task(SoftDelete, Base):
     __tablename__ = "tasks"
     id = Column(Integer, primary_key=True)
     title = Column(String(200), nullable=False)
@@ -148,7 +158,7 @@ class Task(Base):
     price = synonym("price_charged_to_client")
 
 
-class WorkLog(Base):
+class WorkLog(SoftDelete, Base):
     __tablename__ = "work_logs"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
@@ -178,7 +188,7 @@ class WorkLog(Base):
     fixed_cost = synonym("worker_expense")
 
 
-class Payment(Base):
+class Payment(SoftDelete, Base):
     __tablename__ = "payments"
     id = Column(Integer, primary_key=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False, index=True)
@@ -198,7 +208,7 @@ class Payment(Base):
     task = relationship("Task", back_populates="payments")
 
 
-class Quote(Base):
+class Quote(SoftDelete, Base):
     __tablename__ = "quotes"
     id = Column(Integer, primary_key=True)
     number = Column(String(40), unique=True, nullable=False, index=True)

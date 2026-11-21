@@ -9,6 +9,7 @@ from database import get_db
 from models import LoginAttempt, Task, User, WorkLog, utcnow
 from security import create_token, get_current_user, hash_password, require_admin, verify_password
 from avatars import avatar_url, remove_avatar_file, resolve_avatar, save_avatar
+from trash import include_deleted
 
 router = APIRouter()
 MAX_ATTEMPTS, LOCK_MINUTES = 5, 15
@@ -261,7 +262,9 @@ def delete_user(user_id: int, admin: User = Depends(require_admin), db: Session 
         raise HTTPException(status_code=404, detail="Utente non trovato")
     if u.id == admin.id:
         raise HTTPException(status_code=400, detail="Non puoi eliminare il tuo account")
-    if db.query(WorkLog).filter(WorkLog.user_id == u.id).count():
+    with include_deleted(db):  # anche i lavori nel cestino tengono l'utente
+        has_logs = db.query(WorkLog).filter(WorkLog.user_id == u.id).count()
+    if has_logs:
         u.active = False
         db.query(Task).filter(Task.assignee_id == u.id, Task.status != "completato").update({"assignee_id": None})
         db.commit()

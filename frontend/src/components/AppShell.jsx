@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  CalendarDays, ChartNoAxesCombined, FileText, History, KanbanSquare, LayoutDashboard, LogOut, Menu, Receipt, Settings, Target, UserCog, Users, Video,
+  CalendarDays, ChartNoAxesCombined, FileText, History, KanbanSquare, LayoutDashboard, LogOut, Menu, Receipt, Settings, Target, Trash2, UserCog, Users, Video,
 } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/context/AuthContext";
@@ -21,6 +21,7 @@ export const ADMIN_NAV = [
   { to: "/pagamenti", label: "Pagamenti", icon: Receipt, id: "pagamenti" },
   { to: "/team", label: "Team & compensi", icon: UserCog, id: "team" },
   { to: "/registro", label: "Registro modifiche", icon: History, id: "registro" },
+  { to: "/cestino", label: "Cestino", icon: Trash2, id: "cestino" },
   { to: "/impostazioni", label: "Impostazioni", icon: Settings, id: "impostazioni" },
 ];
 export const EMPLOYEE_NAV = [

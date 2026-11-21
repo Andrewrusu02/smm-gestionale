@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Client, Quote, QuoteItem, User
 from security import require_admin
+from trash import soft_delete
 
 router = APIRouter()
 
@@ -99,11 +100,11 @@ def update_quote(quote_id: int, body: QuoteIn, _: User = Depends(require_admin),
 
 
 @router.delete("/quotes/{quote_id}")
-def delete_quote(quote_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def delete_quote(quote_id: int, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     q = db.get(Quote, quote_id)
     if not q:
         raise HTTPException(status_code=404, detail="Preventivo non trovato")
-    db.delete(q)
+    soft_delete(db, q, user)
     db.commit()
     return {"ok": True}
 

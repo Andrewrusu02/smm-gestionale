@@ -1,6 +1,6 @@
 from datetime import date
 from typing import Literal, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from database import get_db
@@ -8,6 +8,8 @@ from models import Client, Lead, Post, Task, User, WorkLog, utcnow
 from security import get_current_user, require_admin
 from avatars import avatar_url
 from routers.finance import _clean_notes
+from google_sync import delete_event
+from trash import soft_delete
 from services import (PACKAGES, client_usage, create_cycle_payment, credit_check,
                       ensure_subscription_payment, package_for, refresh_payment_statuses)
 
@@ -195,15 +197,18 @@ def update_client(client_id: int, body: ClientIn, _: User = Depends(require_admi
 
 
 @router.delete("/clients/{client_id}")
-def delete_client(client_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def delete_client(client_id: int, bg: BackgroundTasks, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     c = db.get(Client, client_id)
     if not c:
         raise HTTPException(status_code=404, detail="Cliente non trovato")
-    task_ids = [t.id for t in c.tasks]
-    db.query(WorkLog).filter(WorkLog.client_id == c.id).update({"client_id": None}, synchronize_session=False)
-    if task_ids:
-        db.query(WorkLog).filter(WorkLog.task_id.in_(task_ids)).update({"task_id": None}, synchronize_session=False)
-    db.query(Task).filter(Task.client_id == c.id).update({"post_id": None}, synchronize_session=False)
-    db.delete(c)
+    # Nel cestino il cliente con task, contenuti, pagamenti, preventivi, script e contratti.
+    # I lavori registrati restano (compensi del team e resoconti), come prima dell'introduzione del cestino.
+    linked = [*c.tasks, *c.posts, *c.payments, *c.quotes, *c.video_scripts, *c.contracts]
+    events = [p.google_event_id for p in c.posts if p.google_event_id]
+    for p in c.posts:
+        p.google_event_id = None
+    soft_delete(db, c, user, linked)
     db.commit()
+    for event_id in events:
+        bg.add_task(delete_event, event_id)
     return {"ok": True}

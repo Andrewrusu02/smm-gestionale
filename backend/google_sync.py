@@ -208,12 +208,12 @@ def _apply_event(db, ev) -> int:
     if not post:
         return _apply_lead_event(db, ev)
     if ev.get("status") == "cancelled":
+        # Eliminato da Google Calendar: nel cestino dell'app (ripristinabile), non cancellato.
+        from trash import soft_delete
         task = post.task
-        if task and task.status != "completato":
-            db.delete(task)
-        elif task:
-            task.post_id = None
-        db.delete(post)
+        linked = [task] if task and task.status != "completato" else []
+        post.google_event_id = None
+        soft_delete(db, post, None, linked)
         return 1
     start, end = _parse_dt(ev.get("start")), _parse_dt(ev.get("end"))
     if not start:

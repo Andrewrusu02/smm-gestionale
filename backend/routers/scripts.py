@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Client, User, VideoScript, utcnow
 from security import get_current_user, require_admin
+from trash import soft_delete
 
 router = APIRouter()
 
@@ -102,10 +103,10 @@ def update_script(script_id: int, body: VideoScriptIn, _: User = Depends(require
 
 
 @router.delete("/scripts/{script_id}")
-def delete_script(script_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def delete_script(script_id: int, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     script = db.get(VideoScript, script_id)
     if not script:
         raise HTTPException(status_code=404, detail="Script non trovato")
-    db.delete(script)
+    soft_delete(db, script, user)
     db.commit()
     return {"ok": True}

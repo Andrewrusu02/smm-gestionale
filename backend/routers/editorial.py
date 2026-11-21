@@ -9,6 +9,7 @@ from google_sync import delete_event, push_post
 from models import Client, Contract, Payment, Post, Task, User, WorkLog
 from security import get_current_user, require_admin
 from avatars import avatar_url
+from trash import soft_delete
 from services import CREDITS_EXHAUSTED_MSG, apply_task_status, credit_check, sync_task_for_post, task_credit_check
 
 router = APIRouter()
@@ -77,7 +78,8 @@ def task_out(t: Task):
     d["assignee_avatar_url"] = avatar_url(t.assignee) if t.assignee else None
     d["post_scheduled_at"] = t.post.scheduled_at.isoformat() if t.post else None
     d["post_content_type"] = t.post.content_type if t.post else None
-    d["payment_id"] = t.payments[0].id if t.payments else None
+    active_payments = [p for p in t.payments if p.deleted_at is None]
+    d["payment_id"] = active_payments[0].id if active_payments else None
     return d
 
 
@@ -149,18 +151,18 @@ def update_post(post_id: int, body: PostIn, bg: BackgroundTasks, force: bool = F
 
 
 @router.delete("/posts/{post_id}")
-def delete_post(post_id: int, bg: BackgroundTasks, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def delete_post(post_id: int, bg: BackgroundTasks, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     p = db.get(Post, post_id)
     if not p:
         raise HTTPException(status_code=404, detail="Contenuto non trovato")
     event_id, t = p.google_event_id, p.task
+    # Nel cestino: il contenuto e il suo task se non completato (con lavori e rate non incassate).
+    # Un task completato resta (è lavoro fatto) e ritrova il contenuto se questo viene ripristinato.
+    linked = []
     if t and t.status != "completato":
-        db.query(WorkLog).filter(WorkLog.task_id == t.id).delete(synchronize_session=False)
-        _drop_task_payments(db, t)
-        db.delete(t)
-    elif t:
-        t.post_id = None
-    db.delete(p)
+        linked = [t, *db.query(WorkLog).filter(WorkLog.task_id == t.id).all(), *_unpaid(t)]
+    p.google_event_id = None  # al ripristino viene creato un nuovo evento Google
+    soft_delete(db, p, user, linked)
     db.commit()
     if event_id:
         bg.add_task(delete_event, event_id)
@@ -187,13 +189,9 @@ def list_tasks(status: Optional[str] = None, client_id: Optional[int] = None, as
     return [task_out(t) for t in tasks]
 
 
-def _drop_task_payments(db, t: Task):
-    """Prima di eliminare un task: le rate non incassate spariscono, quelle incassate restano senza task."""
-    for payment in list(t.payments):
-        if payment.status == "saldato":
-            payment.task_id = None
-        else:
-            db.delete(payment)
+def _unpaid(t: Task):
+    """Rate non incassate di un task: vanno nel cestino insieme al task. Quelle incassate restano."""
+    return [payment for payment in t.payments if payment.status != "saldato" and payment.deleted_at is None]
 
 
 def _check_assignee(db, user: User, assignee_id):
@@ -262,12 +260,12 @@ def update_task(task_id: int, body: TaskPatch, user: User = Depends(get_current_
         setattr(t, k, v)
     if {"price_charged_to_client", "subscription_included"} & data.keys():
         billable = bool(t.client_id and t.price_charged_to_client > 0 and not t.subscription_included)
-        unpaid = [payment for payment in t.payments if payment.status != "saldato"]
+        unpaid = _unpaid(t)
         if billable:
             if unpaid:
                 unpaid[0].amount = t.price_charged_to_client
                 for payment in unpaid[1:]:
-                    db.delete(payment)
+                    soft_delete(db, payment, user)
             else:
                 db.add(Payment(client_id=t.client_id, task_id=t.id, kind="single_job",
                                amount=t.price_charged_to_client, description=f"Lavoro: {t.title}",
@@ -276,11 +274,11 @@ def update_task(task_id: int, body: TaskPatch, user: User = Depends(get_current_
                                status="in_attesa"))
         else:
             for payment in unpaid:
-                db.delete(payment)
+                soft_delete(db, payment, user)
     if "due_date" in data and t.due_date:
         # La scadenza del pagamento segue quella del lavoro finché non è incassato.
         for payment in t.payments:
-            if payment.status != "saldato" and payment.kind == "single_job":
+            if payment.status != "saldato" and payment.kind == "single_job" and payment.deleted_at is None:
                 payment.due_date = t.due_date
                 payment.period = t.due_date.strftime("%Y-%m")
     if new_status:
@@ -296,9 +294,8 @@ def delete_task(task_id: int, user: User = Depends(get_current_user), db: Sessio
         raise HTTPException(status_code=404, detail="Task non trovato")
     if user.role != "admin" and t.created_by != user.id:
         raise HTTPException(status_code=403, detail="Solo l'amministratore o chi ha creato il task può eliminarlo")
-    db.query(WorkLog).filter(WorkLog.task_id == t.id).update({"task_id": None})
-    _drop_task_payments(db, t)
-    db.delete(t)
+    # Nel cestino con le rate non incassate; i lavori già registrati restano (compensi e resoconti).
+    soft_delete(db, t, user, _unpaid(t))
     db.commit()
     return {"ok": True}
 

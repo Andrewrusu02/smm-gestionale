@@ -64,7 +64,7 @@ export default function ClientDetail() {
           )}
           <Button variant="outline" onClick={() => setJobOpen(true)}><BriefcaseBusiness className="mr-2 h-4 w-4" />Nuovo lavoro</Button>
           <Button variant="outline" onClick={() => setEdit(true)} data-testid="edit-client-button"><Pencil className="mr-2 h-4 w-4" />Modifica</Button>
-          <ConfirmDialog testId="delete-client" title="Eliminare il cliente?" description="Verranno eliminati anche contenuti, task e pagamenti collegati. L'operazione è irreversibile." onConfirm={remove}
+          <ConfirmDialog testId="delete-client" title="Eliminare il cliente?" description="Il cliente finisce nel cestino insieme a contenuti, task e pagamenti collegati. Potrai ripristinarlo entro 30 giorni." onConfirm={remove}
             trigger={<Button variant="outline" className="text-rose-600 hover:text-rose-700" data-testid="delete-client-button"><Trash2 className="mr-2 h-4 w-4" />Elimina</Button>} />
         </>}
       />

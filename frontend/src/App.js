@@ -20,6 +20,7 @@ import Quotes from "@/pages/Quotes";
 import Reports from "@/pages/Reports";
 import VideoScripts from "@/pages/VideoScripts";
 import AuditLog from "@/pages/AuditLog";
+import Trash from "@/pages/Trash";
 
 function Protected({ children, admin }) {
   const { user, isAdmin } = useAuth();
@@ -73,6 +74,7 @@ export default function App() {
             <Route path="pagamenti" element={<Protected admin><Payments /></Protected>} />
             <Route path="team" element={<Protected admin><Team /></Protected>} />
             <Route path="registro" element={<Protected admin><AuditLog /></Protected>} />
+            <Route path="cestino" element={<Protected admin><Trash /></Protected>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
