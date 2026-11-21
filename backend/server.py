@@ -11,15 +11,16 @@ from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 from database import SessionLocal, init_db  # noqa: E402
 from backups import backup_loop  # noqa: E402
 import models  # noqa: E402,F401
+import audit  # noqa: E402,F401  (registra il listener del registro modifiche)
 from security import seed_admin  # noqa: E402
 from services import backfill_cycles, refresh_payment_statuses  # noqa: E402
 from google_sync import sync_loop  # noqa: E402
-from routers import auth_users, clients, contracts, editorial, finance, integrations, leads, quotes, scripts, system  # noqa: E402
+from routers import audit_log, auth_users, clients, contracts, editorial, finance, integrations, leads, quotes, scripts, system  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 app = FastAPI(title="SMM Agency Gestionale")
-for r in (auth_users, clients, contracts, editorial, finance, integrations, leads, quotes, scripts, system):
+for r in (audit_log, auth_users, clients, contracts, editorial, finance, integrations, leads, quotes, scripts, system):
     app.include_router(r.router, prefix="/api")
 
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  CalendarDays, ChartNoAxesCombined, FileText, KanbanSquare, LayoutDashboard, LogOut, Menu, Receipt, Settings, Target, UserCog, Users, Video,
+  CalendarDays, ChartNoAxesCombined, FileText, History, KanbanSquare, LayoutDashboard, LogOut, Menu, Receipt, Settings, Target, UserCog, Users, Video,
 } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/context/AuthContext";
@@ -20,6 +20,7 @@ export const ADMIN_NAV = [
   { to: "/resoconti", label: "Resoconti", icon: ChartNoAxesCombined, id: "resoconti" },
   { to: "/pagamenti", label: "Pagamenti", icon: Receipt, id: "pagamenti" },
   { to: "/team", label: "Team & compensi", icon: UserCog, id: "team" },
+  { to: "/registro", label: "Registro modifiche", icon: History, id: "registro" },
   { to: "/impostazioni", label: "Impostazioni", icon: Settings, id: "impostazioni" },
 ];
 export const EMPLOYEE_NAV = [
@@ -42,7 +43,7 @@ function SidebarBody({ onNavigate }) {
           <p className="text-[11px] uppercase tracking-widest text-slate-500">Agency suite</p>
         </div>
       </div>
-      <nav className="mt-4 flex-1 space-y-1 px-3">
+      <nav className="mt-4 flex-1 space-y-1 overflow-y-auto px-3">
         {nav.map(({ to, label, icon: Icon, id }) => (
           <NavLink
             key={to}

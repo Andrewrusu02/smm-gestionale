@@ -261,3 +261,17 @@ class Lead(Base):
     google_event_id = Column(String(255), index=True)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    user_name = Column(String(120))
+    entity = Column(String(40), nullable=False)
+    entity_id = Column(Integer)
+    action = Column(String(20), nullable=False)  # create | update | delete | restore
+    before_json = Column(Text)
+    after_json = Column(Text)
+    summary = Column(String(255))

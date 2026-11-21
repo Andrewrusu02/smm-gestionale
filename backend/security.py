@@ -51,6 +51,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user = db.get(User, int(payload["sub"]))
     if not user or not user.active:
         raise HTTPException(status_code=401, detail="Utente non trovato o disattivato")
+    db.info["audit_user"] = (user.id, user.name)  # per il registro modifiche (audit.py)
     return user
 
 
