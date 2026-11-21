@@ -17,7 +17,7 @@ from services import backfill_cycles, refresh_payment_statuses  # noqa: E402
 from google_sync import sync_loop  # noqa: E402
 from routers import (  # noqa: E402
     audit_log, auth_users, clients, contracts, editorial, expenses_api, exports, finance, forecast, integrations, leads, quotes,
-    pricelist, scripts, search, shotlist, system, trash_bin,
+    ideas, pricelist, scripts, search, shotlist, system, trash_bin,
 )
 from trash import purge_loop  # noqa: E402
 
@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 
 app = FastAPI(title="SMM Agency Gestionale")
 ROUTERS = (audit_log, auth_users, clients, contracts, editorial, expenses_api, exports, finance, forecast, integrations, leads,
-           pricelist, quotes, scripts, search, shotlist, system, trash_bin)
+           ideas, pricelist, quotes, scripts, search, shotlist, system, trash_bin)
 for r in ROUTERS:
     app.include_router(r.router, prefix="/api")
 

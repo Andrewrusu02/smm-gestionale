@@ -359,3 +359,21 @@ class ShotListItem(Base):
     done_by = Column(Integer, ForeignKey("users.id"))
 
     post = relationship("Post", back_populates="shot_items")
+
+
+class Idea(Base):
+    """Idea rapida per un cliente (banca idee)."""
+    __tablename__ = "ideas"
+    id = Column(Integer, primary_key=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    note = Column(Text)
+    reference_url = Column(String(500))
+    status = Column(String(20), nullable=False, default="nuova", index=True)  # nuova | approvata | scartata | convertita
+    video_script_id = Column(Integer, ForeignKey("video_scripts.id"))
+    created_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    client = relationship("Client")
+    video_script = relationship("VideoScript")

@@ -7,6 +7,7 @@ import { Chip, ConfirmDialog, Loading, PageHeader, Panel, UserAvatar } from "@/c
 import PackageUsage from "@/components/PackageUsage";
 import PriceListPanel from "@/components/PriceListPanel";
 import SubscriptionHistoryPanel from "@/components/SubscriptionHistoryPanel";
+import IdeasPanel from "@/components/IdeasPanel";
 import ClientFormDialog from "@/pages/ClientFormDialog";
 import { api, errMsg, useApi } from "@/lib/api";
 import VideoScripts from "@/pages/VideoScripts";
@@ -119,6 +120,7 @@ export default function ClientDetail() {
           <Panel title="Storico lavori conclusi">
             {!c.work_logs?.length ? <p className="text-sm text-slate-500">Nessun lavoro concluso.</p> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-xs uppercase text-slate-500"><th className="p-2">Data</th><th className="p-2">Attività</th><th className="p-2">Operatore</th><th className="p-2 text-right">Entrata</th><th className="p-2 text-right">Compenso</th><th className="p-2 text-right">Margine</th><th /></tr></thead><tbody>{c.work_logs.map((log) => <tr key={log.id} className="border-b border-slate-100"><td className="p-2">{fmtDate(log.date)}</td><td className="p-2">{log.task_title}</td><td className="p-2">{log.user_name || "—"}</td><td className="p-2 text-right">{eur(log.client_revenue)}</td><td className="p-2 text-right">{eur(log.worker_payout)}</td><td className="p-2 text-right font-bold">{eur(log.margin)}</td><td className="p-2 text-right"><Button size="icon" variant="ghost" onClick={() => setLogEdit(log)}><Pencil className="h-4 w-4" /></Button><ConfirmDialog title="Eliminare il lavoro?" onConfirm={async () => { try { await api.delete(`/work-logs/${log.id}`); toast.success("Lavoro eliminato"); reload(); } catch (e) { toast.error(errMsg(e)); } }} trigger={<Button size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-rose-500" /></Button>} /></td></tr>)}</tbody></table></div>}
           </Panel>
+          <IdeasPanel clientId={c.id} />
           <Panel title="Script video" action={<Video className="h-4 w-4 text-indigo-500" />}>
             <VideoScripts clientId={c.id} />
           </Panel>

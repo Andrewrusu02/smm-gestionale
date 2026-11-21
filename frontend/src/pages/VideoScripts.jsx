@@ -8,6 +8,7 @@ import VideoScriptDialog, { SCRIPT_STATUSES } from "@/pages/VideoScriptDialog";
 import { api, errMsg, useApi } from "@/lib/api";
 import { fmtDate } from "@/lib/constants";
 import { useUrlParam } from "@/lib/useUrlParam";
+import IdeasPanel from "@/components/IdeasPanel";
 
 const STATUS_STYLE = {
   BOZZA: "border-slate-200 bg-slate-50 text-slate-600", SCRIPT_PRONTO: "border-indigo-200 bg-indigo-50 text-indigo-700",
@@ -22,6 +23,12 @@ export default function VideoScripts({ clientId }) {
   const [dialog, setDialog] = useState({ open: false, script: null });
   const [teleprompter, setTeleprompter] = useState(null);
   const openId = useUrlParam("id", () => {});
+  useEffect(() => {
+    // Uno script appena creato da un'idea: ricarica l'elenco anche se la pagina è già aperta.
+    const h = () => reload();
+    window.addEventListener("scripts:reload", h);
+    return () => window.removeEventListener("scripts:reload", h);
+  }, [reload]);
   useEffect(() => {
     // Dalla ricerca globale: apre direttamente lo script richiesto.
     const found = openId && (scripts || []).find((s) => String(s.id) === openId);
@@ -42,6 +49,7 @@ export default function VideoScripts({ clientId }) {
     <div data-testid="video-scripts-page">
       {!clientId && <PageHeader eyebrow="Content production" title="Script & idee video" subtitle="Organizza concept, copioni e giornate di shooting in un unico posto."
         actions={<Button onClick={() => setDialog({ open: true, script: null })} className="min-h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700"><Plus className="mr-2 h-4 w-4" />Nuova idea</Button>} />}
+      {!clientId && <div className="mb-6"><IdeasPanel clients={clients || []} /></div>}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row">
         {!clientId && <NativeSelect value={filter} onChange={(e) => setFilter(e.target.value)} className="sm:max-w-xs"><option value="">Tutti i clienti</option>{(clients || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</NativeSelect>}
         {clientId && <Button onClick={() => setDialog({ open: true, script: null })} className="min-h-11 self-start rounded-xl bg-indigo-600 hover:bg-indigo-700"><Plus className="mr-2 h-4 w-4" />Nuova idea</Button>}
